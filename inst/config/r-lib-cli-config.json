@@ -1,0 +1,19 @@
+{
+  "code_source": {
+    "git_repo": "https://github.com/r-lib/cli",
+    "language_hints": ["R"]
+  },
+  "llm_settings": {
+    "api_provider": "siliconcloud",
+    "api_base_url": "https://api.siliconflow.cn/v1",
+    "api_key_env_var": "SILICONCLOUD_API_KEY",
+    "model": "Qwen/Qwen3-235B-A22B",
+    "max_tokens_per_request": 150,
+    "temperature": 0.2,
+    "rate_limit_delay_sec": 1,
+    "token_limit": 5000
+  },
+  "output_dir": "/home/ubuntu/autodoc_tool/output/r-lib-cli",
+  "output_filename_base": "cli_documentation",
+  "quarto_format": "html"
+}

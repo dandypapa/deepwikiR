@@ -1,0 +1,19 @@
+{
+  "code_source": {
+    "local_path": "/home/ubuntu/autodoc_tool/sample_code",
+    "include_patterns": ["*.R", "*.py"],
+    "exclude_patterns": ["*test*", "*ignore*"]
+  },
+  "llm_settings": {
+    "provider": "openai_compatible",
+    "api_base_url": "https://api.siliconflow.cn/v1",
+    "model_id": "Qwen/Qwen2-7B-Instruct",
+    "api_key_env": "SILICONCLOUD_API_KEY",
+    "prompt_context": "Generate documentation suitable for a software library reference.",
+    "max_tokens_per_call": 4000,
+    "max_total_tokens": 5000
+  },
+  "output_dir": "/home/ubuntu/autodoc_tool/output/project_docs",
+  "output_filename_base": "generated_documentation_siliconcloud",
+  "quarto_format": "html"
+}

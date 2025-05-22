@@ -1,0 +1,16 @@
+{
+  "code_source": {
+    "local_path": "/home/ubuntu/autodoc_tool/sample_code",
+    "include_patterns": ["*.R", "*.py"],
+    "exclude_patterns": ["*test*", "*ignore*"]
+  },
+  "llm_settings": {
+    "provider": "openai",
+    "model_id": "gpt-3.5-turbo",
+    "api_key_env": "OPENAI_API_KEY",
+    "prompt_context": "Generate documentation suitable for a software library reference."
+  },
+  "output_dir": "/home/ubuntu/autodoc_tool/output/project_docs",
+  "output_filename_base": "generated_documentation",
+  "quarto_format": "html"
+}

@@ -1,0 +1,30 @@
+Package: deepwikiR
+Title: 自动化生成代码仓库文档的工具
+Version: 0.1.0
+Authors@R: 
+    person("DeepWiki", "Team", , "example@example.com", role = c("aut", "cre"),
+           comment = c(ORCID = ""))
+Description: 一个专为R语言代码仓库设计的自动化文档生成系统，结合了R语言静态分析、
+    大语言模型和Quarto框架，能够自动为代码仓库生成全面的文档，并通过Mermaid图表
+    可视化展示函数和模块之间的调用关系。支持本地文件系统和Git仓库作为代码源，
+    可以提取函数、类和其他代码元素，使用大语言模型生成详细文档说明，并将所有内容
+    整合到美观的Quarto文档中。
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.2.3
+Imports: 
+    CodeDepends,
+    jsonlite,
+    httr,
+    stringr,
+    argparse,
+    quarto,
+    git2r
+Suggests: 
+    tidyllm,
+    knitr,
+    rmarkdown,
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+VignetteBuilder: knitr
