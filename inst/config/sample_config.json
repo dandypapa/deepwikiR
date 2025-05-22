@@ -1,16 +1,77 @@
 {
-  "code_source": {
-    "local_path": "/home/ubuntu/autodoc_tool/sample_code",
-    "include_patterns": ["*.R", "*.py"],
-    "exclude_patterns": ["*test*", "*ignore*"]
+  "global_settings": {
+    "output_dir_root": "output/multi_project_docs",
+    "default_llm_settings": {
+      "provider": "openai",
+      "model": "gpt-3.5-turbo",
+      "max_tokens_per_request": 150,
+      "temperature": 0.2,
+      "rate_limit_delay_sec": 1,
+      "api_details": {
+        "api_key_env_var": "OPENAI_API_KEY",
+        "api_base_url": "https://api.openai.com/v1"
+      },
+      "prompt_context": "Default prompt context for library documentation."
+    }
   },
-  "llm_settings": {
-    "provider": "openai",
-    "model_id": "gpt-3.5-turbo",
-    "api_key_env": "OPENAI_API_KEY",
-    "prompt_context": "Generate documentation suitable for a software library reference."
-  },
-  "output_dir": "/home/ubuntu/autodoc_tool/output/project_docs",
-  "output_filename_base": "generated_documentation",
-  "quarto_format": "html"
+  "projects": [
+    {
+      "project_name": "SampleProjectR_from_multi_config",
+      "code_source": {
+        "local_path": "sample_code", 
+        "language_hints": ["R"],
+        "include_patterns": ["*.R"],
+        "exclude_patterns": ["*test*", "*ignore*"]
+      },
+      "output_dir": "SampleProjectR_docs", 
+      "output_filename_base": "R_project_docs",
+      "quarto_format": "html",
+      "export_finetuning_data": {
+        "enabled": true,
+        "output_filename": "R_project_finetune_export.jsonl",
+        "format": "jsonl_chat"
+      }
+    },
+    {
+      "project_name": "AnotherProjectPy_from_multi_config",
+      "code_source": {
+        "local_path": "sample_code_py", 
+        "language_hints": ["Python"],
+        "include_patterns": ["*.py"],
+        "exclude_patterns": ["*test*", "__pycache__"]
+      },
+      "llm_settings": { 
+        "provider": "openai",
+        "model": "gpt-4", 
+        "max_tokens_per_request": 200,
+        "temperature": 0.3,
+        "rate_limit_delay_sec": 1,
+        "api_details": {
+          "api_key_env_var": "OPENAI_API_KEY_OTHER", 
+          "api_base_url": "https://api.openai.com/v1"
+        },
+        "prompt_context": "Specific prompt context for Python project."
+      },
+      "output_dir": "/tmp/abs_path_py_docs_multi", 
+      "output_filename_base": "Py_project_docs",
+      "quarto_format": "pdf",
+      "export_finetuning_data": {
+        "enabled": false 
+        // output_filename and format can be omitted if enabled is false
+      }
+    },
+    {
+      "project_name": "MinimalProject_with_defaults",
+      "code_source": {
+        "local_path": "sample_code_minimal", 
+        "language_hints": ["Generic"],
+        "include_patterns": ["*.txt"]
+      },
+      "output_filename_base": "Minimal_project_docs"
+      // Will use global output_dir_root + project_name for output_dir
+      // Will use global default_llm_settings
+      // Will use default quarto_format (html, to be handled in validation or rendering)
+      // export_finetuning_data section is omitted, will default to enabled = FALSE
+    }
+  ]
 }

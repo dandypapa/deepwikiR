@@ -167,9 +167,45 @@ analyze_r_repository_code <- function(code_details, project_base_path) {
   # Pass the project_base_path for constructing absolute paths when reading files for call graph
   call_graph_result <- generate_r_call_graph(r_file_relative_paths, project_base_path)
   
+  # New logic to collect directory contents
+  directory_contents <- list()
+  all_relative_file_paths_for_dirs <- names(code_details) # These are already relative to project_base_path
+
+  for (relative_file_path in all_relative_file_paths_for_dirs) {
+    # dirname() on a relative path like "R/script.R" gives "R"
+    # dirname() on "script.R" gives "."
+    dir_name <- dirname(relative_file_path)
+    
+    # Normalize dir_name: use "." for root, ensure forward slashes, add trailing slash for non-root
+    if (dir_name == ".") {
+      # Consistent key for files in the root of the analyzed scope
+      dir_key <- "." 
+    } else {
+      # Ensure forward slashes for consistency (though R usually uses them)
+      dir_key <- gsub("\\\\", "/", dir_name)
+      # Add a trailing slash for non-root directories to distinguish R/ from R.some.file
+      if (!endsWith(dir_key, "/")) {
+        dir_key <- paste0(dir_key, "/")
+      }
+    }
+    
+    base_name <- basename(relative_file_path)
+    
+    if (is.null(directory_contents[[dir_key]])) {
+      directory_contents[[dir_key]] <- list()
+    }
+    directory_contents[[dir_key]] <- c(directory_contents[[dir_key]], base_name)
+  }
+  
+  # Ensure unique file names within each directory listing, though it should be by nature
+  for (dir_key in names(directory_contents)) {
+    directory_contents[[dir_key]] <- unique(directory_contents[[dir_key]])
+  }
+
   return(list(
     extracted_elements = all_elements,
-    call_graph = call_graph_result
+    call_graph = call_graph_result,
+    directory_contents = directory_contents
   ))
 }
 

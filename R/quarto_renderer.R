@@ -57,7 +57,16 @@ generate_mermaid_call_graph <- function(call_graph_data) {
 
 # Function to render documentation using Quarto
 # Takes generated content, output path, format, and call graph data
-render_quarto_document <- function(qmd_content_list, output_dir, output_filename_base, quarto_format = "html", project_name = "Project", call_graph_data = NULL) {
+render_quarto_document <- function(
+  qmd_content_list, 
+  output_dir, 
+  output_filename_base, 
+  quarto_format = "html", 
+  project_name = "Project", 
+  call_graph_data = NULL,
+  directory_summaries = NULL, # New argument
+  verbose = TRUE # Added verbose for consistency, though not explicitly used much here yet
+) {
   # Ensure output directory exists
   if (!dir.exists(output_dir)) {
     dir.create(output_dir, recursive = TRUE)
@@ -85,40 +94,65 @@ render_quarto_document <- function(qmd_content_list, output_dir, output_filename
     "\n\n"
   )
   
-  full_qmd_content <- yaml_header
+  full_qmd_content_lines <- list(yaml_header)
+  
+  # Add Directory Overview section
+  if (!is.null(directory_summaries) && length(directory_summaries) > 0) {
+    dir_summary_qmd <- list("\n## Directory Overview\n")
+    # Sort directory names for consistent output, e.g., "." first, then "R/", then "src/"
+    sorted_dir_names <- sort(names(directory_summaries))
+    
+    for (dir_path in sorted_dir_names) {
+      summary_text <- directory_summaries[[dir_path]]
+      # Use "." for root directory display, or the provided key
+      display_dir_path <- if (dir_path == ".") "./ (Project Root)" else dir_path
+      
+      dir_summary_qmd[[length(dir_summary_qmd) + 1]] <- paste0(
+        "\n### Directory: `", display_dir_path, "`\n\n",
+        summary_text, "\n"
+      )
+    }
+    dir_summary_qmd[[length(dir_summary_qmd) + 1]] <- "\n---\n" # Add a separator
+    full_qmd_content_lines <- c(full_qmd_content_lines, dir_summary_qmd)
+  }
   
   # Add Mermaid call graph section if data is available
   if (!is.null(call_graph_data) && length(call_graph_data$nodes) > 0) {
     mermaid_syntax <- generate_mermaid_call_graph(call_graph_data)
-    mermaid_section <- paste0(
-      "## Function Call Graph\n\n",
+    mermaid_section <- list(
+      "\n## Function Call Graph\n\n",
       "```mermaid\n",
       mermaid_syntax,
-      "\n```\n\n"
+      "\n```\n\n",
+      "---\n" # Add a separator
     )
-    full_qmd_content <- paste0(full_qmd_content, mermaid_section)
+    full_qmd_content_lines <- c(full_qmd_content_lines, mermaid_section)
   }
   
   # Add main documentation content (function descriptions etc.)
   if (length(qmd_content_list) > 0) {
-    full_qmd_content <- paste0(full_qmd_content, "## Function Documentation\n\n")
+    element_docs_qmd <- list("\n## Detailed Code Element Documentation\n")
     for (item in qmd_content_list) {
       # Ensure item is a character string
-      if(is.list(item) && !is.null(item$content_block)) { # Assuming item might be a list with a content_block
+      item_content <- ""
+      if(is.list(item) && !is.null(item$content_block)) { 
         item_content <- item$content_block
       } else if (is.character(item)) {
         item_content <- item
-      } else {
-        item_content <- "" # Skip if not in expected format
+      } # Skip if not in expected format, item_content remains ""
+      
+      if (nzchar(item_content)) { # Only add if there's content
+        element_docs_qmd[[length(element_docs_qmd) + 1]] <- paste0("\n", item_content, "\n\n---\n")
       }
-      full_qmd_content <- paste0(full_qmd_content, item_content, "\n\n---\n\n")
     }
+    full_qmd_content_lines <- c(full_qmd_content_lines, element_docs_qmd)
   }
   
   # Write the .qmd file
+  final_qmd_content_str <- paste(unlist(full_qmd_content_lines), collapse = "")
   tryCatch({
-    writeLines(full_qmd_content, qmd_file_path)
-    cat(paste("Quarto input file written to:", qmd_file_path, "\n"))
+    writeLines(final_qmd_content_str, qmd_file_path)
+    if (verbose) cat(paste("Quarto input file written to:", qmd_file_path, "\n"))
   }, error = function(e) {
     stop(paste("Error writing .qmd file:", e$message))
   })
