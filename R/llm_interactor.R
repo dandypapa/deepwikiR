@@ -1,29 +1,39 @@
 # /home/ubuntu/autodoc_tool/R/llm_interactor.R
-# Handles interaction with Large Language Models for generating documentation
 
-# Ensure necessary libraries are loaded (e.g., tidyllm, httr, jsonlite)
-# These should be installed via pak in install_dependencies.R or Dockerfile
-if (!requireNamespace("tidyllm", quietly = TRUE)) {
-  stop("Package tidyllm is not installed. Please install it.")
-}
-if (!requireNamespace("httr", quietly = TRUE)) {
-  stop("Package httr is not installed. Please install it.")
-}
-if (!requireNamespace("jsonlite", quietly = TRUE)) {
-  stop("Package jsonlite is not installed. Please install it.")
-}
+#' @importFrom tidyllm complete
+#' @importFrom httr POST content
+#' @importFrom jsonlite fromJSON toJSON
+#' @importFrom stringr str_trim
+NULL
 
-library(tidyllm)
-library(httr)
-library(jsonlite)
-
-# Global token counter (simple version)
-.total_tokens_consumed <- 0
-
+#' Get Total Tokens Consumed
+#'
+#' @title Retrieve LLM Token Consumption
+#' @description Returns the total number of tokens estimated to have been consumed
+#' by LLM interactions during the current R session.
+#'
+#' @return Numeric. The total tokens consumed.
+#' @export
+#' @examples
+#' \dontrun{
+#' # Initialize counter or after some LLM calls
+#' total_tokens <- get_total_tokens_consumed()
+#' cat("Total tokens used so far:", total_tokens, "\n")
+#' }
 get_total_tokens_consumed <- function() {
   return(.total_tokens_consumed)
 }
 
+#' Increment Tokens Consumed
+#'
+#' @title Increment LLM Token Counter
+#' @description Adds a specified number of tokens to the session's total token consumption counter.
+#' Issues a warning if the input is not a single numeric value.
+#'
+#' @param tokens Numeric. The number of tokens to add to the total.
+#' @return Invisible NULL. Modifies the global token counter (`.total_tokens_consumed`)
+#'         as a side effect.
+#' @noRd
 increment_tokens_consumed <- function(tokens) {
   if (is.numeric(tokens) && length(tokens) == 1 && !is.na(tokens)) {
     .total_tokens_consumed <<- .total_tokens_consumed + tokens
@@ -32,8 +42,24 @@ increment_tokens_consumed <- function(tokens) {
   }
 }
 
-# Helper function to safely get nested list elements
-# TODO: Consider moving to a general utils file if used elsewhere
+#' Safely Get Nested List Elements
+#'
+#' @title Access Nested List Elements Safely
+#' @description Retrieves an element from a nested list structure using a sequence of keys.
+#' If any key along the path does not exist, or if the structure is not a list
+#' at any point, it returns `NULL` instead of throwing an error.
+#'
+#' @param lst The list from which to retrieve the element.
+#' @param ... A sequence of character strings or numeric indices representing the
+#'        path of keys to the desired element.
+#' @return The value of the nested element if found, otherwise `NULL`.
+#' @noRd
+#' @examples
+#' \dontrun{
+#' my_list <- list(a = list(b = list(c = 10)))
+#' safe_get_nested(my_list, "a", "b", "c") # Returns 10
+#' safe_get_nested(my_list, "a", "x", "c") # Returns NULL
+#' }
 safe_get_nested <- function(lst, ...) {
   keys <- list(...)
   for (key in keys) {
@@ -46,9 +72,27 @@ safe_get_nested <- function(lst, ...) {
   return(lst)
 }
 
-# Provider-specific handler for tidyllm (OpenAI-compatible)
-# Inputs: prompt, model_name, max_tokens, temperature, api_key, api_base_url
-# Returns a list with status, content, and tokens_used
+#' Handle TidyLLM API Completion
+#'
+#' @title Process LLM Completion via TidyLLM
+#' @description Sends a prompt to an OpenAI-compatible LLM API using the `tidyllm` package.
+#' It manages API key and base URL environment variables for the duration of the call.
+#'
+#' @param prompt Character string. The prompt to send to the LLM.
+#' @param model_name Character string. The identifier of the LLM model to use.
+#' @param max_tokens Integer. The maximum number of tokens to generate in the completion.
+#' @param temperature Numeric. The sampling temperature for generation (controls randomness).
+#' @param api_key Character string. The API key for the LLM service.
+#' @param api_base_url Character string or NULL. The base URL for the LLM API endpoint.
+#' @param element_name Character string. A descriptive name for the item being processed
+#'        (e.g., function name, directory path), used for logging and error messages.
+#'        Default is "current element".
+#'
+#' @return A list with:
+#'   \item{status}{"success" or "error".}
+#'   \item{content}{The generated text if successful, or an error message.}
+#'   \item{tokens_used}{An estimated number of tokens used for the request (prompt + completion).}
+#' @noRd
 handle_tidyllm_completion <- function(prompt, model_name, max_tokens, temperature, api_key, api_base_url, element_name = "current element") {
   orig_openai_api_key <- Sys.getenv("OPENAI_API_KEY", unset = NA)
   orig_openai_api_base <- Sys.getenv("OPENAI_API_BASE", unset = NA)
@@ -56,12 +100,8 @@ handle_tidyllm_completion <- function(prompt, model_name, max_tokens, temperatur
   Sys.setenv(OPENAI_API_KEY = api_key)
   if (!is.null(api_base_url) && nzchar(api_base_url)) {
     Sys.setenv(OPENAI_API_BASE = api_base_url)
-  } else {
-    # Ensure OPENAI_API_BASE is unset if api_base_url is NULL or empty
-    # Sys.unsetenv("OPENAI_API_BASE") # tidyllm might default if not set
-  }
+  } 
   
-  # Restore original env vars on exit, whether success or error
   on.exit({
     if (is.na(orig_openai_api_key)) Sys.unsetenv("OPENAI_API_KEY") else Sys.setenv(OPENAI_API_KEY = orig_openai_api_key)
     if (is.na(orig_openai_api_base)) Sys.unsetenv("OPENAI_API_BASE") else Sys.setenv(OPENAI_API_BASE = orig_openai_api_base)
@@ -75,13 +115,10 @@ handle_tidyllm_completion <- function(prompt, model_name, max_tokens, temperatur
       model = model_name,
       max_tokens = max_tokens,
       temperature = temperature
-      # system_prompt can be added if needed
     )
 
     if (is.data.frame(response) && "completion" %in% names(response) && nrow(response) > 0) {
       generated_text <- response$completion[1]
-      # Rough token estimation (prompt + completion), assumes 1 token ~ 4 chars
-      # TODO: More accurate token counting if tidyllm provides it (e.g., from response headers or attributes)
       prompt_tokens <- nchar(prompt) / 4 
       completion_tokens <- nchar(generated_text) / 4
       total_tokens_for_request <- prompt_tokens + completion_tokens
@@ -103,20 +140,35 @@ handle_tidyllm_completion <- function(prompt, model_name, max_tokens, temperatur
   return(result)
 }
 
-# Generic function to invoke LLM completion
-# Inputs: prompt, llm_config (list with provider, model, etc.), element_name
-# Returns a list with status, content, and tokens_used
+#' Invoke LLM Completion (Generic)
+#'
+#' @title Generic LLM Completion Invocation
+#' @description A generic wrapper to call different LLM providers for text completion.
+#' It reads provider-specific details from `llm_config` and routes the request
+#' to the appropriate handler (e.g., `handle_tidyllm_completion`).
+#'
+#' @param prompt Character string. The prompt to send to the LLM.
+#' @param llm_config A list. Configuration for the LLM, including `provider`, `model`,
+#'        `max_tokens_per_request`, `temperature`, and `api_details` (which should
+#'        contain `api_key_env_var` and optionally `api_base_url`).
+#' @param element_name Character string. A descriptive name for the item being processed,
+#'        used for logging. Default is "current element".
+#'
+#' @return A list with:
+#'   \item{status}{"success" or "error".}
+#'   \item{content}{The generated text if successful, or an error message.}
+#'   \item{tokens_used}{An estimated number of tokens used for the request.}
+#' @noRd
 invoke_llm_completion <- function(prompt, llm_config, element_name = "current element") {
   provider <- safe_get_nested(llm_config, "provider")
   if (is.null(provider)) {
     return(list(status = "error", content = "LLM provider not specified in llm_config.", tokens_used = 0))
   }
 
-  model_name <- safe_get_nested(llm_config, "model") %||% "gpt-3.5-turbo" # Default if not specified
+  model_name <- safe_get_nested(llm_config, "model") %||% "gpt-3.5-turbo" 
   max_tokens <- safe_get_nested(llm_config, "max_tokens_per_request") %||% 150
   temperature <- safe_get_nested(llm_config, "temperature") %||% 0.2
   
-  # Get API key from environment variable specified in config
   api_key_env_var <- safe_get_nested(llm_config, "api_details", "api_key_env_var")
   if (is.null(api_key_env_var)) {
       return(list(status = "error", content = "API key environment variable name not specified in llm_config$api_details.", tokens_used = 0))
@@ -124,38 +176,46 @@ invoke_llm_completion <- function(prompt, llm_config, element_name = "current el
   api_key <- Sys.getenv(api_key_env_var, unset = "")
   if (api_key == "") {
     warning_msg <- paste("API key from env var '", api_key_env_var, "' is not set. LLM calls might fail for provider '", provider, "'.", sep="")
-    # It's a warning because some providers might not need a key or use other auth methods handled by their SDKs
     warning(warning_msg) 
-    # Depending on strictness, could return an error here:
-    # return(list(status = "error", content = warning_msg, tokens_used = 0))
   }
 
-  api_base_url <- safe_get_nested(llm_config, "api_details", "api_base_url") # Can be NULL
+  api_base_url <- safe_get_nested(llm_config, "api_details", "api_base_url") 
 
-  # Switch based on provider
-  if (provider == "openai" || provider == "tidyllm") { # Assuming "openai" uses tidyllm for now
+  if (provider == "openai" || provider == "tidyllm") { 
     cat(paste("Using tidyllm handler for provider:", provider, "for element:", element_name, "\n"))
     return(handle_tidyllm_completion(
       prompt = prompt,
       model_name = model_name,
-      max_tokens = as.integer(max_tokens), # Ensure integer type
-      temperature = as.numeric(temperature), # Ensure numeric type
+      max_tokens = as.integer(max_tokens), 
+      temperature = as.numeric(temperature), 
       api_key = api_key,
       api_base_url = api_base_url,
       element_name = element_name
     ))
   } else if (provider == "another_provider") {
-    # Placeholder for another provider's handler
-    # return(handle_another_completion(...))
     return(list(status = "error", content = paste("Provider '", provider, "' not yet supported.", sep=""), tokens_used = 0))
   } else {
     return(list(status = "error", content = paste("Unknown LLM provider specified:", provider), tokens_used = 0))
   }
 }
 
-# Function to generate documentation for code elements using an LLM
-# Takes a list of extracted code elements, LLM settings from config, and language hints
-# Returns the list of elements, augmented with LLM-generated descriptions
+#' Generate Documentation for Code Elements via LLM
+#'
+#' @title Generate LLM Documentation for Code Elements
+#' @description Iterates through a list of extracted code elements (e.g., functions),
+#' constructs a detailed prompt for each, and calls an LLM to generate a
+#' documentation string (description).
+#'
+#' @param extracted_elements A list of code elements. Each element is a list
+#'        expected to contain `name`, `type`, `signature`, `file_path`, and `code_block`.
+#' @param llm_settings A list. Configuration for the LLM, as defined in the main
+#'        project config (e.g., `project_config$llm_settings`). Passed to `invoke_llm_completion`.
+#' @param language_hints A character vector. Hints about the programming language(s)
+#'        (e.g., `c("R", "function")`) to include in the LLM prompt.
+#'
+#' @return The input `extracted_elements` list, with each element augmented with a
+#'         `description` field containing the LLM-generated text or an error/placeholder message.
+#' @noRd
 generate_docs_with_llm <- function(extracted_elements, llm_settings, language_hints) {
   if (is.null(llm_settings) || is.null(safe_get_nested(llm_settings, "provider"))) {
     cat("LLM settings or provider not specified. Skipping LLM documentation generation.\n")
@@ -169,17 +229,15 @@ generate_docs_with_llm <- function(extracted_elements, llm_settings, language_hi
 
   cat(paste("Using LLM API Provider:", safe_get_nested(llm_settings, "provider"), "\n"))
 
-  # Loop through each code element and generate a description
   for (i in seq_along(extracted_elements)) {
     element <- extracted_elements[[i]]
     cat(paste("Generating docs for element:", element$name, "in file:", element$file_path, "\n"))
 
-    # Construct a prompt for the LLM
     lang_hint_str <- paste(language_hints, collapse = ", ")
     prompt <- paste0(
       "You are an expert programmer tasked with generating concise documentation for code elements.",
       "\nFor the following ", lang_hint_str, " ", element$type, " named `", element$name, "`",
-      " with signature `", element$name, element$signature, "`", # Assuming element$signature does not include name
+      " with signature `", element$name, element$signature, "`", 
       " found in file `", element$file_path, "`,",
       "\nCode block:\n```", tolower(language_hints[[1]] %||% "r"), "\n",
       paste(element$code_block, collapse = "\n"),
@@ -189,11 +247,9 @@ generate_docs_with_llm <- function(extracted_elements, llm_settings, language_hi
       "Do not repeat the code block or the signature in your explanation. Be very concise."
     )
 
-    # Call the generic LLM invocation function
-    # llm_settings itself is passed as llm_config
     llm_response <- invoke_llm_completion(
       prompt = prompt,
-      llm_config = llm_settings, # llm_settings from main config matches structure for llm_config
+      llm_config = llm_settings, 
       element_name = element$name
     )
 
@@ -211,7 +267,6 @@ generate_docs_with_llm <- function(extracted_elements, llm_settings, language_hi
       extracted_elements[[i]]$description <- paste("(LLM description generation failed:", llm_response$content, ")")
     }
 
-    # Respect rate limits if any (simple delay)
     rate_limit_delay <- safe_get_nested(llm_settings, "rate_limit_delay_sec")
     if (!is.null(rate_limit_delay) && is.numeric(rate_limit_delay) && rate_limit_delay > 0) {
       Sys.sleep(rate_limit_delay)
@@ -222,32 +277,54 @@ generate_docs_with_llm <- function(extracted_elements, llm_settings, language_hi
 }
 
 
-#' Generate Summaries for Each Directory in a Project using an LLM
+#' Generate Summaries for Each Directory via LLM
 #'
-#' Iterates through directories, compiles context about their contents (files and documented elements),
-#' and calls an LLM to generate a high-level summary for each directory.
+#' @title Generate LLM Directory Summaries
+#' @description Iterates through directories within a project, compiles context about
+#' their contents (including file names and summaries of documented code elements
+#' within those files), and calls an LLM to generate a high-level summary for each directory.
 #'
-#' @param directory_contents A named list where names are directory paths (keys like "R/", ".", "src/utils/")
-#'                           and values are character vectors of basenames of files in that directory.
-#'                           Output from `analyze_r_repository_code`.
-#' @param code_details A named list where names are relative file paths to project root and values
-#'                     are the string content of those files.
-#' @param llm_generated_docs A list of documentation objects for individual code elements (functions, etc.),
-#'                           each object should include at least `name`, `type`, `file_path` (relative to project root),
-#'                           and `description`.
-#' @param llm_config The LLM settings object, as passed from the main configuration.
-#'                   Expected to contain provider, model, api_details (including api_key_env_var), etc.
-#' @param language_hints A character vector providing language context (e.g., c("R", "script")).
-#' @param project_name The name of the project, used in prompts.
-#' @param verbose Logical, whether to print detailed messages during processing. Default TRUE.
-#' @return A named list where names are directory path keys and values are the LLM-generated summaries.
+#' @param directory_contents A named list where names are directory paths (keys like
+#'        "R/", ".", "src/utils/") relative to the project root, and values are
+#'        character vectors of basenames of files in that directory. This is part
+#'        of the output from `analyze_r_repository_code`.
+#' @param code_details A named list where names are relative file paths to project root
+#'        and values are the string content of those files. (Currently not used for
+#'        code snippets in prompts to manage prompt length, but available for future use).
+#' @param llm_generated_docs A list of documentation objects for individual code
+#'        elements (e.g., functions), as returned by `generate_docs_with_llm`. Each
+#'        object should include `name`, `type`, `file_path` (relative to project root),
+#'        and `description`.
+#' @param llm_config The LLM settings object from the project configuration, passed
+#'        to `invoke_llm_completion`.
+#' @param language_hints A character vector providing language context (e.g., `c("R", "script")`).
+#'        (Currently not used in directory summary prompts, but available).
+#' @param project_name Character string. The name of the project, used in prompts.
+#' @param verbose Logical. If `TRUE`, prints detailed status messages. Default is `TRUE`.
+#'
+#' @return A named list where names are directory path keys (e.g., "R/", ".") and
+#'         values are the LLM-generated summary strings for each directory.
+#'         If LLM calls fail for a directory, the value will be an error message.
 #' @export
+#' @examples
+#' \dontrun{
+#' # Assume directory_contents, llm_generated_docs, llm_config, etc. are populated
+#' # summaries <- generate_directory_summaries_with_llm(
+#' #   directory_contents,
+#' #   code_details_placeholder, # Can be an empty list if not used by context compiler
+#' #   llm_docs_for_elements,
+#' #   project_llm_settings,
+#' #   project_language_hints,
+#' #   "MyAwesomeProject"
+#' # )
+#' # print(summaries[["R/"]])
+#' }
 generate_directory_summaries_with_llm <- function(
   directory_contents,
-  code_details, # Currently not used for code snippets to manage prompt length, but available
+  code_details, 
   llm_generated_docs,
   llm_config,
-  language_hints, # Currently not used in dir summary prompt, but available
+  language_hints, 
   project_name,
   verbose = TRUE
 ) {
@@ -259,37 +336,31 @@ generate_directory_summaries_with_llm <- function(
     return(directory_summaries)
   }
 
-  # --- Helper for Context Compilation ---
   compile_directory_context <- function(dir_path_key, files_in_dir, all_docs, max_context_char = 15000) {
     context_parts <- list()
     current_char_count <- 0
 
-    # Header
     header <- paste0("Context for directory '", dir_path_key, "' in project '", project_name, "':\n")
     context_parts[[length(context_parts) + 1]] <- header
     current_char_count <- current_char_count + nchar(header)
 
-    # File list
     file_list_str <- paste0("This directory contains the following files: ", paste(files_in_dir, collapse=", "), "\n\n")
     context_parts[[length(context_parts) + 1]] <- file_list_str
     current_char_count <- current_char_count + nchar(file_list_str)
     
-    # Documented elements in this directory
     elements_in_dir_context <- c()
-    # Normalize dir_path_key for matching: remove trailing slash if present, except for "."
     normalized_dir_path_for_match <- if (dir_path_key == ".") "." else sub("/$", "", dir_path_key)
 
     for (element_doc in all_docs) {
       if (current_char_count >= max_context_char) break
       
-      # element_doc$file_path is relative to project root e.g. "R/utils.R" or "main.R"
-      element_dir_name <- dirname(element_doc$file_path) # "R" or "."
-      element_base_name <- basename(element_doc$file_path) # "utils.R" or "main.R"
+      element_dir_name <- dirname(element_doc$file_path) 
+      element_base_name <- basename(element_doc$file_path) 
 
       if (element_dir_name == normalized_dir_path_for_match && element_base_name %in% files_in_dir) {
         element_snippet <- paste0(
           "Element Name: ", element_doc$name, " (Type: ", element_doc$type, ")\n",
-          "File: ", element_doc$file_path, "\n", # Relative to project root
+          "File: ", element_doc$file_path, "\n", 
           "Description: ", element_doc$description %||% "(No description available)", "\n---\n"
         )
         if (current_char_count + nchar(element_snippet) <= max_context_char) {
@@ -310,7 +381,6 @@ generate_directory_summaries_with_llm <- function(
     
     return(paste(unlist(context_parts), collapse=""))
   }
-  # --- End of Helper ---
 
   if (verbose) cat(paste("Starting directory summary generation for project:", project_name, "\n"))
 
@@ -353,7 +423,6 @@ generate_directory_summaries_with_llm <- function(
       directory_summaries[[dir_path_key]] <- stringr::str_trim(llm_response$content)
       if (verbose) {
         cat(paste("  Successfully generated summary for directory:", dir_path_key, "\n"))
-        # cat(paste("    Summary:", directory_summaries[[dir_path_key]], "\n")) # Can be too verbose
       }
       if (!is.null(llm_response$tokens_used) && is.numeric(llm_response$tokens_used)) {
         increment_tokens_consumed(llm_response$tokens_used)
@@ -365,7 +434,6 @@ generate_directory_summaries_with_llm <- function(
       directory_summaries[[dir_path_key]] <- paste("(LLM summary generation failed:", llm_response$content, ")")
     }
 
-    # Respect rate limits
     rate_limit_delay <- safe_get_nested(llm_config, "rate_limit_delay_sec")
     if (!is.null(rate_limit_delay) && is.numeric(rate_limit_delay) && rate_limit_delay > 0) {
       if (verbose) cat(paste("  Respecting rate limit, sleeping for", rate_limit_delay, "seconds.\n"))
@@ -376,4 +444,3 @@ generate_directory_summaries_with_llm <- function(
   if (verbose) cat(paste("Finished directory summary generation for project:", project_name, "\n"))
   return(directory_summaries)
 }
-

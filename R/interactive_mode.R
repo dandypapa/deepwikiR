@@ -2,33 +2,44 @@
 
 # R/interactive_mode.R - Interactive Q&A about the R codebase
 
-# --- Dependencies ---
-if (!requireNamespace("argparse", quietly = TRUE)) {
-  install.packages("argparse", repos = "http://cran.us.r-project.org")
-}
-library(argparse)
+#' @importFrom argparse ArgumentParser
+#' @importFrom jsonlite fromJSON
+NULL
 
-if (!requireNamespace("jsonlite", quietly = TRUE)) {
-  install.packages("jsonlite", repos = "http://cran.us.r-project.org")
-}
-library(jsonlite)
-
-# Source LLM interactor functions
-# Assuming the script is run from the project root directory (e.g., ./R/interactive_mode.R)
-llm_interactor_path <- "R/llm_interactor.R"
-if (!file.exists(llm_interactor_path)) {
-  stop(paste("LLM Interactor script not found at:", llm_interactor_path, 
-             "Please ensure you are running from the project root or adjust the path."))
-}
-source(llm_interactor_path)
-
-# --- Helper Functions ---
-
-#' Build a context string from documented code elements.
+#' Build Context from Documented Elements for LLM
 #'
-#' @param documented_elements A list of documented code elements.
-#' @param max_context_length Approximate maximum character length for the context.
-#' @return A single string containing formatted documentation for code elements.
+#' @title Construct Context String from Documentation
+#' @description Combines documentation from various code elements into a single
+#' string to be used as context for an LLM in a Q&A session.
+#'
+#' @param documented_elements A list of documented code elements. Each element is
+#'        expected to be a list with at least `name`, `type`, `file_path`,
+#'        `signature`, `code_block`, and `description` (or `documentation_text`).
+#' @param max_context_length Numeric. The approximate maximum character length for
+#'        the generated context string. Default is 15,000 characters.
+#'
+#' @return Character string. A formatted string containing the details of
+#'         documented elements, truncated if it exceeds `max_context_length`.
+#'         Returns a message if no elements are provided or if context cannot be built.
+#'
+#' @details The function iterates through `documented_elements`, formatting each
+#'          one into a block containing its name, type, file path, signature,
+#'          code, and description. It stops adding blocks if the total character
+#'          count exceeds `max_context_length`.
+#'
+#' @examples
+#' \dontrun{
+#' # Sample elements (simplified)
+#' elements <- list(
+#'   list(name="func1", type="function", file_path="R/file1.R", signature="()",
+#'        code_block="func1 <- function() { print('hi') }", description="Prints hi"),
+#'   list(name="func2", type="function", file_path="R/file2.R", signature="(x)",
+#'        code_block="func2 <- function(x) { x + 1 }", description="Increments x")
+#' )
+#' context_str <- build_context_from_docs(elements)
+#' # cat(context_str)
+#' }
+#' @noRd
 build_context_from_docs <- function(documented_elements, max_context_length = 15000) {
   context_blocks <- c()
   current_length <- 0
@@ -38,10 +49,9 @@ build_context_from_docs <- function(documented_elements, max_context_length = 15
   }
 
   for (element in documented_elements) {
-    # Use 'description' if available (from LLM), otherwise 'documentation_text' or a fallback
-    element_desc <- element$description # This is the field populated by generate_docs_with_llm
+    element_desc <- element$description 
     if (is.null(element_desc) || element_desc == "") {
-        element_desc <- element$documentation_text # Fallback if any
+        element_desc <- element$documentation_text 
     }
     if (is.null(element_desc) || element_desc == "") {
         element_desc <- "(No description available)"
@@ -51,9 +61,9 @@ build_context_from_docs <- function(documented_elements, max_context_length = 15
       "Item: ", element$name, "\n",
       "Type: ", element$type, "\n",
       "File: ", element$file_path, "\n",
-      "Signature: ", element$name, element$signature, "\n", # Assuming signature doesn't include name
+      "Signature: ", element$name, element$signature, "\n", 
       "Code:\n",
-      "```r\n",
+      "```r\n", # Assuming R code, could be parameterized if needed
       paste(element$code_block, collapse = "\n"), "\n",
       "```\n",
       "Description:\n",
@@ -63,8 +73,6 @@ build_context_from_docs <- function(documented_elements, max_context_length = 15
     
     block_length <- nchar(block)
     if (current_length + block_length > max_context_length && length(context_blocks) > 0) {
-      # If adding this block exceeds max length, and we already have some context, stop.
-      # A more sophisticated strategy could be implemented here (e.g., prioritizing, summarizing).
       cat(paste0("Context length limit (", max_context_length, " chars) reached. Context may be truncated.\n"))
       break 
     }
@@ -80,17 +88,41 @@ build_context_from_docs <- function(documented_elements, max_context_length = 15
   return(paste(context_blocks, collapse = ""))
 }
 
-# --- Main Application Logic ---
-main <- function() {
-  parser <- ArgumentParser(description = "Interactive Q&A about an R codebase using LLM.")
+#' Main Function for Interactive Q&A Mode
+#'
+#' @title Run Interactive Codebase Q&A Session
+#' @description This function is the main entry point for the interactive Q&A mode.
+#' It parses command-line arguments for data and configuration files, loads them,
+#' builds a context from the analyzed code, and then enters a loop to take user
+#' questions and provide LLM-generated answers.
+#'
+#' @details
+#' The function expects two command-line arguments:
+#' - `--data_file`: Path to the `_analysis_data.rds` file containing code analysis results.
+#' - `--config_file`: Path to the main project `config.json` file for LLM settings.
+#'
+#' It sources `R/llm_interactor.R` for LLM communication. The Q&A loop continues
+#' until the user types "exit", "quit", or "q". Token consumption is tracked
+#' and reported for the session.
+#'
+#' This function is intended to be called when `R/interactive_mode.R` is executed
+#' as a script.
+#'
+#' @note This function itself is not exported as it's the main part of a script.
+#'       The script execution is guarded by `if (!interactive()) { main() }`.
+#' @keywords internal
+#' @noRd
+main_interactive_mode <- function() { # Renamed from main to avoid conflict if sourced
+  parser <- argparse::ArgumentParser(description = "Interactive Q&A about an R codebase using LLM.")
   parser$add_argument("--data_file", type = "character", required = TRUE,
                       help = "Path to the _analysis_data.rds file.")
   parser$add_argument("--config_file", type = "character", required = TRUE,
                       help = "Path to the main project config.json file.")
   
-  args <- parser$parse_args()
+  # When run via Rscript, commandArgs(trailingOnly=TRUE) provides the arguments
+  # When sourced for testing, you might pass args manually or use default NULL
+  args <- parser$parse_args(args = commandArgs(trailingOnly = TRUE))
 
-  # --- Load Data and Configuration ---
   cat("Loading analysis data from:", args$data_file, "\n")
   if (!file.exists(args$data_file)) {
     stop("Analysis data file not found: ", args$data_file)
@@ -105,37 +137,83 @@ main <- function() {
   if (!file.exists(args$config_file)) {
     stop("Configuration file not found: ", args$config_file)
   }
-  project_config <- tryCatch({
-    jsonlite::fromJSON(args$config_file, simplifyVector = FALSE) # Keep structure
+  
+  # project_config here refers to the *entire* multi-project config file.
+  # We need to find the LLM settings, likely from global_settings or a specific project.
+  # For simplicity, this script will assume LLM settings are directly accessible or within global_settings.
+  # A more robust approach would be to identify which project the .rds file belongs to if ambiguous.
+  full_project_config <- tryCatch({
+    jsonlite::fromJSON(args$config_file, simplifyVector = FALSE) 
   }, error = function(e) {
     stop("Error loading JSON config file: ", e$message)
   })
 
-  llm_settings <- project_config$llm_settings
-  if (is.null(llm_settings)) {
-    stop("LLM settings not found in the configuration file.")
+  # Attempt to get LLM settings:
+  # 1. From a specific project if analysis_data contains a project_name that matches one in config.
+  # 2. Fallback to global_settings$default_llm_settings.
+  # 3. Error if no LLM settings can be clearly identified.
+  llm_settings <- NULL
+  current_project_name_from_data <- analysis_data$project_name %||% NULL
+
+  if (!is.null(current_project_name_from_data) && !is.null(full_project_config$projects)) {
+    for (proj_conf_item in full_project_config$projects) {
+      if (identical(proj_conf_item$project_name, current_project_name_from_data)) {
+        # If this project has its own LLM settings, use them.
+        # Otherwise, they should have been merged with defaults during load_and_validate_config.
+        llm_settings <- proj_conf_item$llm_settings 
+        break
+      }
+    }
+  }
+  
+  if (is.null(llm_settings) && !is.null(full_project_config$global_settings$default_llm_settings)) {
+    cat("Using default LLM settings from global_settings for interactive mode.\n")
+    llm_settings <- full_project_config$global_settings$default_llm_settings
+  }
+  
+  if (is.null(llm_settings) || is.null(llm_settings$provider)) { # Check for provider specifically
+    stop("LLM settings (including provider) could not be resolved from the configuration file for the interactive session.")
   }
 
-  project_name <- analysis_data$project_name %||% "this R project"
-  documented_elements <- analysis_data$documented_elements
-  # call_graph <- analysis_data$call_graph # Not used in this version but available
 
-  cat("\nWelcome to the Interactive R Codebase Q&A for project:", project_name, "\n")
+  project_name_display <- current_project_name_from_data %||% "this R project"
+  documented_elements <- analysis_data$documented_elements
+
+  cat("\nWelcome to the Interactive R Codebase Q&A for project:", project_name_display, "\n")
   cat("Type 'exit', 'quit', or 'q' to end the session.\n\n")
 
   session_tokens_consumed <- 0
 
-  # --- Build Full Context (once per session for now) ---
   cat("Building codebase context for the LLM...\n")
-  code_context_str <- build_context_from_docs(documented_elements)
-  if (nchar(code_context_str) < 100) { # Arbitrary small number to check if context is minimal
+  # Pass only documented_elements to build_context_from_docs
+  code_context_str <- build_context_from_docs(documented_elements) 
+  if (nchar(code_context_str) < 100) { 
       cat("Warning: The generated context is very short. Answers may be limited.\n")
   }
   cat("Context built. Ready for questions.\n\n")
 
-  # --- Interactive Loop ---
+  # Source LLM interactor functions - ensure path is correct relative to script execution
+  # If R/interactive_mode.R is run from project root, then "R/llm_interactor.R" is correct.
+  # If run from R/ itself, then "llm_interactor.R"
+  # Assuming execution from project root as per instructions for deepwikiR::run_cli
+  base_path_for_source <- if (basename(getwd()) == "R") "." else "R" 
+  llm_interactor_script_path <- file.path(base_path_for_source, "llm_interactor.R")
+
+  if (!file.exists(llm_interactor_script_path)) {
+      # Try to find it relative to this script's path if possible
+      # This is more robust if the script is called from different locations
+      try_path <- tryCatch(dirname(sys.frame(1)$ofile), warning=function(w) NULL) # Path of current script
+      if (!is.null(try_path)) llm_interactor_script_path <- file.path(try_path, "llm_interactor.R")
+  }
+  
+  if (!file.exists(llm_interactor_script_path)) {
+    stop(paste("LLM Interactor script not found. Tried:", llm_interactor_script_path, 
+               "Please ensure R/llm_interactor.R is accessible."))
+  }
+  source(llm_interactor_script_path, local = TRUE) # Source into local env for safety
+
   while (TRUE) {
-    user_question <- readline(prompt = paste0("[", project_name, "] Ask a question (or 'exit'): "))
+    user_question <- readline(prompt = paste0("[", project_name_display, "] Ask a question (or 'exit'): "))
     user_question_lower <- tolower(trimws(user_question))
 
     if (user_question_lower %in% c("exit", "quit", "q")) {
@@ -147,9 +225,8 @@ main <- function() {
       next
     }
 
-    # Construct the prompt
     system_prompt <- paste0(
-      "You are an AI assistant helping a user understand their R codebase for the project named '", project_name, "'.\n",
+      "You are an AI assistant helping a user understand their R codebase for the project named '", project_name_display, "'.\n",
       "The user will ask a question. Use the following context, which includes documented functions and code elements from their project, to answer the question.\n",
       "If the answer cannot be found in the provided context, clearly state that. Do not make up information outside of this context.\n",
       "Focus on providing answers relevant to the user's R code.\n\n",
@@ -163,18 +240,18 @@ main <- function() {
 
     cat("\nSending question to LLM...\n")
     
-    # Call LLM
-    # Ensure llm_settings is correctly passed. invoke_llm_completion expects 'llm_config'
     llm_response <- invoke_llm_completion(
       prompt = full_prompt,
       llm_config = llm_settings, 
-      element_name = paste("interactive_question_for", project_name) # For logging/tracking
+      element_name = paste("interactive_question_for", project_name_display) 
     )
 
     if (llm_response$status == "success") {
       cat("\nLLM Response:\n", llm_response$content, "\n\n")
       if (!is.null(llm_response$tokens_used) && is.numeric(llm_response$tokens_used)) {
         session_tokens_consumed <- session_tokens_consumed + llm_response$tokens_used
+        # Use increment_tokens_consumed from sourced llm_interactor.R if it updates a global counter
+        # For session-specific, direct addition is fine as done here.
         cat(paste0("Approx. tokens for this exchange: ", round(llm_response$tokens_used), 
                    ". Session total: ", round(session_tokens_consumed), "\n\n"))
       }
@@ -187,9 +264,10 @@ main <- function() {
   cat("Thank you for using the Interactive R Codebase Q&A!\n")
 }
 
-# --- Script Execution ---
-if (!interactive()) {
-  # This check ensures the main function runs only when Rscript is used.
-  # If you source this file in an interactive R session, main() won't run automatically.
-  main()
+# Script Execution Guard
+# This ensures main_interactive_mode() is called only when Rscript R/interactive_mode.R is used.
+# It checks if the script is the top-level frame (sys.nframe() == 0L) 
+# and if the session is not interactive (implying Rscript execution).
+if (sys.nframe() == 0L && !interactive()) {
+  main_interactive_mode()
 }

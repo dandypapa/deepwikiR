@@ -1,11 +1,47 @@
-#' 获取代码内容
+#' Acquire Code Content from Various Sources
 #'
-#' 从指定的源（本地路径或Git仓库）获取代码内容。
-#' 返回一个列表，其中键是文件路径，值是文件内容字符串。
+#' @description
+#' Fetches code content from a specified source, which can be either a local directory
+#' or a remote Git repository. It reads text files, excluding very large files and
+#' specific patterns (like `.git` folder contents).
 #'
-#' @param code_source_config 代码源配置，包含local_path或git_repo
-#' @return 代码内容列表，键为文件路径，值为文件内容
-#' @keywords internal
+#' @param code_source_config A list containing configuration for the code source.
+#'   It must include either `local_path` (character string for a local directory)
+#'   or `git_repo` (character string for a Git repository URL). The list can also
+#'   contain optional `include_patterns` and `exclude_patterns` (though these are
+#'   not explicitly used in the current file listing logic of this function but
+#'   are part of a broader convention).
+#'
+#' @return A named list where keys are file paths (relative to the root of the
+#'   source, e.g., "R/script.R") and values are character strings representing
+#'   the content of these files. Returns an empty list if no files are found or
+#'   if the source is inaccessible.
+#'
+#' @details
+#' - For `local_path`, the function lists all files recursively.
+#' - For `git_repo`, the function clones the repository into a temporary directory,
+#'   reads the files, and then cleans up the temporary directory.
+#' - Files larger than 10MB are skipped.
+#' - Errors during file reading (e.g., for binary files) are caught and reported,
+#'   but do not stop the processing of other files.
+#'
+#' @examples
+#' \dontrun{
+#' # Example for a local path
+#' local_config <- list(local_path = "./sample_code_project")
+#' # Ensure "./sample_code_project" exists and has files.
+#' # code_content_local <- acquire_code_content(local_config)
+#' # print(names(code_content_local))
+#'
+#' # Example for a Git repository
+#' # git_config <- list(git_repo = "https://github.com/user/my_r_project.git")
+#' # code_content_git <- acquire_code_content(git_config)
+#' # print(names(code_content_git))
+#' }
+#'
+#' @importFrom utils file.info
+#' @importFrom git2r clone
+#' @noRd
 acquire_code_content <- function(code_source_config) {
   code_details <- list()
   
@@ -18,10 +54,6 @@ acquire_code_content <- function(code_source_config) {
       return(list())
     }
     
-    # List all files recursively (or based on config if more specific rules are added later)
-    # For now, let's assume R files (.R, .r) are of primary interest for R-specific analysis
-    # but we should probably fetch all text-based files for broader applicability
-    # We can filter later in the analysis stage if needed.
     files_to_process <- list.files(local_path, recursive = TRUE, full.names = TRUE, no.. = TRUE)
     
     if (length(files_to_process) == 0) {
@@ -30,19 +62,15 @@ acquire_code_content <- function(code_source_config) {
     }
     
     for (file_path in files_to_process) {
-      if (dir.exists(file_path)) next # Skip directories
+      if (dir.exists(file_path)) next 
       
-      # Basic check for text files (can be improved)
-      # For now, let's try to read all files and handle errors if they are binary
       tryCatch({
-        # Ensure file is not too large to avoid memory issues (e.g., > 10MB)
-        if (file.info(file_path)$size > 10 * 1024 * 1024) {
+        if (utils::file.info(file_path)$size > 10 * 1024 * 1024) {
             cat(paste("Skipping large file ( > 10MB ):", file_path, "\n"))
             next
         }
         content <- paste(readLines(file_path, warn = FALSE, encoding = "UTF-8"), collapse = "\n")
-        # Use relative path from the provided local_path as the key for consistency
-        relative_file_path <- sub(paste0("^", normalizePath(local_path), "/"), "", normalizePath(file_path))
+        relative_file_path <- sub(paste0("^", normalizePath(local_path), .Platform$file.sep), "", normalizePath(file_path))
         code_details[[relative_file_path]] <- content
       }, error = function(e) {
         cat(paste("Could not read file (possibly binary or encoding issue):", file_path, "-", e$message, "\n"))
@@ -55,7 +83,6 @@ acquire_code_content <- function(code_source_config) {
     dir.create(target_dir)
     cat(paste("Cloning git repository:", git_repo_url, "to", target_dir, "\n"))
     
-    # Ensure git2r is installed (should be handled by pak)
     if (!requireNamespace("git2r", quietly = TRUE)) {
       stop("Package git2r is not installed. Please install it to use git_repo feature.")
     }
@@ -64,24 +91,22 @@ acquire_code_content <- function(code_source_config) {
       repo <- git2r::clone(git_repo_url, target_dir)
       cat("Repository cloned successfully.\n")
       
-      # Now list files from the cloned directory
       files_to_process <- list.files(target_dir, recursive = TRUE, full.names = TRUE, no.. = TRUE)
       for (file_path in files_to_process) {
-        if (dir.exists(file_path) || grepl("/\\.git/", file_path)) next # Skip directories and .git folder contents
+        if (dir.exists(file_path) || grepl(paste0(.Platform$file.sep, ".git", .Platform$file.sep), file_path, fixed = TRUE)) next 
         
         tryCatch({
-          if (file.info(file_path)$size > 10 * 1024 * 1024) {
+          if (utils::file.info(file_path)$size > 10 * 1024 * 1024) {
             cat(paste("Skipping large file ( > 10MB ):", file_path, "\n"))
             next
           }
           content <- paste(readLines(file_path, warn = FALSE, encoding = "UTF-8"), collapse = "\n")
-          relative_file_path <- sub(paste0("^", normalizePath(target_dir), "/"), "", normalizePath(file_path))
+          relative_file_path <- sub(paste0("^", normalizePath(target_dir), .Platform$file.sep), "", normalizePath(file_path))
           code_details[[relative_file_path]] <- content
         }, error = function(e) {
           cat(paste("Could not read file from cloned repo:", file_path, "-", e$message, "\n"))
         })
       }
-      # Clean up cloned directory
       unlink(target_dir, recursive = TRUE, force = TRUE)
       cat(paste("Cleaned up temporary clone directory:", target_dir, "\n"))
       
