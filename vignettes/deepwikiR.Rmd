@@ -1,240 +1,399 @@
-# 自动化代码仓库文档生成工具 - 用户手册（R语言与Mermaid调用关系图增强版）
+---
+title: "deepwikiR: Automated R Code Documentation and Exploration"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{deepwikiR: Automated R Code Documentation and Exploration}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
 
-## 1. 工具概述
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
 
-本工具是一个专为R语言代码仓库设计的自动化文档生成系统，它结合了R语言静态分析、大语言模型和Quarto框架，能够自动为代码仓库生成全面的文档，并通过Mermaid图表可视化展示函数和模块之间的调用关系。
+## 1. Introduction
 
-### 主要功能
+`deepwikiR` is an advanced R package designed to automate the documentation and exploration of R code repositories. It leverages static code analysis, the power of Large Language Models (LLMs) for generating human-like text, and the Quarto publishing framework to produce comprehensive and well-structured documentation.
 
-- 自动分析R代码仓库结构，提取函数、类和其他代码元素
-- 使用大语言模型为代码元素生成详细文档说明
-- 通过Mermaid语法生成函数调用关系图，直观展示代码结构
-- 将所有内容整合到美观的Quarto文档中，支持HTML、PDF等多种输出格式
-- 支持本地文件系统和Git仓库作为代码源
+This tool helps developers and teams to:
 
-## 2. 环境配置
+*   Understand complex R projects more quickly.
+*   Maintain up-to-date documentation with minimal effort.
+*   Explore codebase structures through visualizations and interactive queries.
 
-### 系统要求
+### Key Features
 
-- R 4.0.0 或更高版本
-- Quarto CLI 1.0.0 或更高版本
-- 以下R包依赖：
-  - CodeDepends（用于静态分析）
-  - tidyllm（用于LLM集成）
-  - jsonlite（用于配置处理）
-  - git2r（用于Git仓库支持）
-  - httr（用于API通信）
-  - stringr（用于文本处理）
-  - argparse（用于命令行参数）
-  - quarto（用于文档渲染）
+*   **Automated Code Documentation:** Generates detailed descriptions for R functions and other code elements using LLMs.
+*   **Call Graph Visualization:** Creates Mermaid diagrams to visualize function and module dependencies, offering insights into code structure.
+*   **Multi-Project Support:** Manages and processes multiple R projects from a single configuration file, producing a master index page for easy navigation of all generated documentations.
+*   **Directory-Level Summaries:** Provides LLM-generated summaries highlighting the purpose and contents of each directory within your project.
+*   **Interactive Code Chat:** Allows users to ask questions about an analyzed codebase in an interactive command-line session, receiving answers from an LLM informed by the codebase's documentation.
+*   **Fine-tuning Data Export:** Exports documented code elements in JSONL format, suitable for fine-tuning custom language models on your specific coding patterns and documentation style.
+*   **Quarto Integration:** Outputs documentation in various formats (HTML, PDF, etc.) using the versatile Quarto framework.
+*   **R Package Structure Adherence:** Built with R package best practices in mind, utilizing Roxygen2 for inline documentation.
 
-### 安装步骤
+## 2. Installation and Setup
 
-1. 安装R环境（如果尚未安装）：
-   ```bash
-   # Ubuntu/Debian
-   sudo apt-get update
-   sudo apt-get install -y r-base r-base-dev
-   
-   # CentOS/RHEL
-   sudo yum install -y R
-   
-   # macOS (使用Homebrew)
-   brew install r
-   ```
+### System Requirements
 
-2. 安装Quarto CLI：
-   从[Quarto官网](https://quarto.org/docs/get-started/)下载并安装适合您系统的版本。
+*   R (version 4.0.0 or higher recommended).
+*   Quarto CLI (version 1.0.0 or higher recommended). Download from [quarto.org](https://quarto.org/docs/get-started/).
+*   Git (must be installed and in the system PATH if you plan to analyze remote Git repositories).
 
-3. 安装R包依赖：
-   ```R
-   # 使用install_dependencies.R脚本自动安装所有依赖
-   Rscript install_dependencies.R
-   
-   # 或手动安装
-   install.packages(c("CodeDepends", "jsonlite", "httr", "stringr", "argparse", "quarto", "git2r"))
-   # 对于tidyllm，可能需要从GitHub安装
-   remotes::install_github("tidyverse/tidyllm")
-   ```
+### R Package Dependencies
 
-## 3. 配置文件说明
+`deepwikiR` relies on several R packages listed in its `DESCRIPTION` file. Key dependencies include:
 
-工具使用JSON格式的配置文件来控制文档生成过程。以下是配置文件的主要参数：
+*   `argparse`: For command-line argument parsing.
+*   `CodeDepends`: For static R code analysis (though currently used minimally, with potential for deeper integration).
+*   `git2r`: For cloning Git repositories.
+*   `jsonlite`: For reading and writing JSON configuration files.
+*   `quarto`: For rendering Quarto documents.
+*   `stringr`: For string manipulation.
+*   `tidyllm`: For interacting with LLM APIs (currently focused on OpenAI-compatible ones).
+
+Other packages like `devtools`, `roxygen2`, and `testthat` are suggested for development and testing.
+
+### Installation Steps
+
+1.  **Install R and Quarto:** Follow instructions from their respective official websites.
+2.  **Install `deepwikiR`:**
+    Currently, `deepwikiR` is under development. To use it, you would typically clone its repository.
+
+    ```bash
+    git clone https://github.com/your_username/deepwikiR.git # Replace with actual URL
+    cd deepwikiR
+    ```
+
+    Then, install dependencies and the package itself. From an R session within the cloned project's root:
+
+    ```{r eval=FALSE}
+    # Install dependencies (this might be more streamlined with pak or remotes in the future)
+    # For now, ensure you have the packages listed in DESCRIPTION's Imports and Suggests.
+    # Example for some key ones:
+    install.packages(c("argparse", "git2r", "jsonlite", "quarto", "stringr", "tidyllm", "devtools", "roxygen2", "testthat", "CodeDepends"))
+    
+    # Build and install deepwikiR locally
+    devtools::install()
+    ```
+
+3.  **Set up LLM API Key:**
+    `deepwikiR` requires access to an LLM. For OpenAI models, set your API key as an environment variable. The default environment variable name is `OPENAI_API_KEY`. You can specify a different variable name in the configuration.
+
+    ```bash
+    # In your .bashrc, .zshrc, or .Renviron
+    export OPENAI_API_KEY="your_openai_api_key_here"
+    ```
+    Remember to restart your R session or terminal for the environment variable to take effect.
+
+## 3. Core Concepts
+
+### Multi-Project Configuration
+
+`deepwikiR` uses a single JSON configuration file to manage documentation generation for one or more projects. This file is typically structured with `global_settings` and a `projects` array.
+
+*   **`global_settings`**: Defines parameters that apply to all projects unless overridden. This includes:
+    *   `output_dir_root`: The main directory where all project documentation outputs will be nested.
+    *   `default_llm_settings`: Default LLM configurations (provider, model, API details, etc.).
+*   **`projects`**: An array where each object defines a specific project to be documented. Each project configuration can specify:
+    *   `project_name`: A unique identifier for the project.
+    *   `code_source`: Details about where the code is located (e.g., `local_path` or `git_repo`), language hints, and include/exclude patterns.
+    *   `output_dir`: A directory name (relative to `output_dir_root`) for this project's documentation.
+    *   `output_filename_base`: The base name for the main Quarto document.
+    *   `llm_settings`: Project-specific LLM settings that override the global defaults.
+    *   `export_finetuning_data`: Settings for exporting data for LLM fine-tuning.
+
+Here's a snippet illustrating the structure:
 
 ```json
 {
-  "code_source": {
-    "local_path": "/path/to/your/code",  // 本地代码路径，与git_repo二选一
-    "git_repo": "https://github.com/user/repo",  // Git仓库URL，与local_path二选一
-    "language_hints": ["R"]  // 代码语言提示，默认为R
+  "global_settings": {
+    "output_dir_root": "output/my_docs_hub",
+    "default_llm_settings": {
+      "provider": "openai",
+      "model": "gpt-3.5-turbo",
+      "api_details": { "api_key_env_var": "OPENAI_API_KEY" }
+    }
   },
-  "llm_settings": {
-    "api_provider": "openai",  // API提供商，支持openai、siliconcloud等
-    "api_base_url": "https://api.openai.com/v1",  // API基础URL
-    "api_key_env_var": "OPENAI_API_KEY",  // 存储API密钥的环境变量名
-    "model": "gpt-3.5-turbo",  // 使用的模型名称
-    "max_tokens_per_request": 150,  // 每个请求的最大token数
-    "temperature": 0.2,  // 生成温度，越低越确定性
-    "rate_limit_delay_sec": 1,  // 请求间延迟，避免触发速率限制
-    "token_limit": 5000  // 总token消耗限制
-  },
-  "output_dir": "/path/to/output",  // 输出目录
-  "output_filename_base": "documentation",  // 输出文件名基础
-  "quarto_format": "html",  // 输出格式，支持html、pdf等
-  "project_name": "My R Project"  // 项目名称，用于文档标题
+  "projects": [
+    {
+      "project_name": "MyFirstProject",
+      "code_source": { "local_path": "path/to/project1_R_code" },
+      "output_dir": "ProjectOneDocs",
+      "output_filename_base": "project_one_main_doc"
+      // Uses default_llm_settings
+    },
+    {
+      "project_name": "AnotherProject",
+      "code_source": { "git_repo": "https://github.com/user/repo2.git" },
+      "output_dir": "ProjectTwoDocs",
+      "output_filename_base": "project_two_main_doc",
+      "llm_settings": { "model": "gpt-4" } // Overrides default model
+    }
+  ]
 }
 ```
 
-## 4. 使用方法
+### Documentation Generation Workflow
 
-### 基本用法
+For each project defined in the configuration, `deepwikiR` performs these steps:
 
-1. 准备配置文件（如`config.json`）
-2. 运行主脚本：
-   ```bash
-   Rscript R/main.R --config path/to/config.json
-   ```
-3. 查看生成的文档（默认位于配置的`output_dir`目录）
+1.  **Code Acquisition:** Fetches code from the specified local path or Git repository.
+2.  **Code Analysis:**
+    *   Extracts R functions and their basic properties (name, signature, code block).
+    *   Builds a call graph to understand dependencies between functions.
+    *   Lists the content of each directory.
+3.  **LLM-Powered Documentation:**
+    *   **Element Documentation:** For each extracted function, an LLM generates a concise description of its purpose, inputs, and outputs.
+    *   **Directory Summaries:** For each directory, an LLM generates a high-level summary of its role and contents, based on the files it contains and the documentation of elements within those files.
+4.  **Quarto Rendering:** All collected information (directory summaries, call graph, function documentation) is compiled into a Quarto (`.qmd`) file and rendered into the desired output format (e.g., HTML).
+5.  **Data Export (Optional):** If configured, documented elements are exported in JSONL format for LLM fine-tuning.
+6.  **Analysis Data Caching:** Key analysis results (documented elements, call graph, summaries) are saved in an `.rds` file in the project's output directory. This file is used for the interactive chat mode.
 
-### 示例
+### Master Index Page
 
-```bash
-# 为本地R项目生成文档
-Rscript R/main.R --config config/local_project_config.json
+When processing multiple projects defined in the configuration and a `global_settings.output_dir_root` is set, `deepwikiR` generates a master `index.html` page in that root directory. This page provides links to the individual documentation generated for each project, creating a centralized hub.
 
-# 为GitHub上的R仓库生成文档
-Rscript R/main.R --config config/github_repo_config.json
-```
+## 4. Detailed Feature Explanations
 
-## 5. Mermaid调用关系图功能
+### Multi-Project Processing
 
-本工具的一个核心特性是使用Mermaid语法生成函数调用关系图，直观展示代码结构和依赖关系。
+As described above, you can manage documentation for several R projects through one `config.json`. When you run `deepwikiR` in `generate` mode with such a config, it will iterate through each project entry in the `projects` array, generating documentation for each according to its specific (or inherited global) settings.
 
-### 调用关系图特性
+### Directory-Level Summaries
 
-- 自动识别R函数之间的调用关系
-- 支持跨文件的函数调用追踪
-- 区分内部函数调用和外部包函数调用
-- 通过图形化展示帮助理解代码结构和流程
+A unique feature of `deepwikiR` is its ability to provide LLM-generated summaries for each directory in your project. This helps in understanding the high-level organization and purpose of different parts of your codebase.
 
-### 调用关系图示例
+In the generated Quarto document for a project, these summaries appear in a dedicated "Directory Overview" section, typically before the detailed function documentation. Each directory is listed with its summary.
 
-```mermaid
-graph TD
-    A[main.R::process_data] --> B[utils.R::clean_data]
-    A --> C[utils.R::transform_data]
-    B --> D[helpers.R::remove_na]
-    C --> E[stats::lm]
-    style A fill:#f9f,stroke:#333,stroke-width:2px
-    style E fill:#ccf,stroke:#333,stroke-width:1px
-```
+### Interactive Chat Mode
 
-## 6. 高级用法
+Once a project's documentation (and its associated `_analysis_data.rds` file) has been generated, you can use the interactive chat mode to ask questions about the codebase. This feature uses an LLM, providing it with the context of your project's documented elements.
 
-### 自定义LLM提供商
+To use this mode:
 
-工具默认支持OpenAI API，但也可以配置为使用其他兼容的API提供商：
+*   **From an R session (if `deepwikiR` is loaded):**
+    ```{r eval=FALSE}
+    deepwikiR::chat_with_repo(
+      analysis_data_path = "path/to/project_output_dir/your_project_analysis_data.rds",
+      config_path = "path/to/your_main_config.json" 
+      # The config_path is needed for LLM settings
+    )
+    ```
+*   **From the command line (recommended for CLI usage):**
+    ```{bash eval=FALSE}
+    # Ensure R/deepwikiR.R is executable or use Rscript path/to/deepwikiR_project_root/R/deepwikiR.R ...
+    Rscript R/deepwikiR.R chat \
+      --data_file path/to/project_output_dir/your_project_analysis_data.rds \
+      --config_file path/to/your_main_config.json
+    ```
+
+This will start a session where you can type questions (e.g., "What does function X do?", "Which functions are related to data cleaning?") and get answers from the LLM.
+
+### Fine-Tuning Data Export
+
+To help you build custom LLMs tailored to your codebase or documentation style, `deepwikiR` can export the documented code elements. This feature is controlled by the `export_finetuning_data` section in each project's configuration:
 
 ```json
-"llm_settings": {
-  "api_provider": "siliconcloud",
-  "api_base_url": "https://api.siliconflow.cn/v1",
-  "api_key_env_var": "SILICONCLOUD_API_KEY",
-  "model": "Qwen/Qwen3-235B-A22B"
+{
+  // ... other project settings ...
+  "export_finetuning_data": {
+    "enabled": true,
+    "output_filename": "my_project_finetune_data.jsonl",
+    "format": "jsonl_chat" // or "jsonl_prompt_completion"
+  }
 }
 ```
 
-### 控制Token消耗
+*   **`enabled`**: Set to `true` to activate this feature.
+*   **`output_filename`**: The name of the JSONL file to be created in the project's `output_dir`.
+*   **`format`**:
+    *   `"jsonl_chat"`: Exports data as a sequence of system, user (code context), and assistant (documentation) messages.
+    *   `"jsonl_prompt_completion"`: Exports data as direct prompt (code context) and completion (documentation) pairs.
 
-对于大型代码库，可以通过以下设置控制LLM的token消耗：
+The generated JSONL file can then be used with various LLM fine-tuning platforms and libraries.
+
+## 5. Usage
+
+### Command-Line Interface (CLI)
+
+The primary interface for `deepwikiR` is its command-line tool, invoked via `Rscript R/deepwikiR.R`.
+
+**Generate Documentation:**
+To process all projects defined in your configuration file:
+```{bash eval=FALSE}
+# Assuming you are in the root of the deepwikiR project directory
+Rscript R/deepwikiR.R generate --config inst/config/sample_config.json
+```
+You can add `--quiet` to suppress verbose logging or `--api-key YOUR_KEY_HERE` to override the API key for all projects processed in that run.
+
+**Chat with Codebase:**
+(As shown in the "Interactive Chat Mode" section above).
+
+### From an R Session
+
+While the CLI is recommended for batch processing, you can also invoke `deepwikiR` functions from an R session, especially for development or custom workflows.
+
+```{r eval=FALSE}
+# Load all functions if working from source (or library(deepwikiR) if installed)
+# devtools::load_all() 
+
+# 1. Load configuration
+config_data <- deepwikiR::load_and_validate_config("inst/config/sample_config.json")
+
+# 2. Process a specific project (e.g., the first one)
+if (length(config_data$projects) > 0) {
+  first_project_config <- config_data$projects[[1]]
+  
+  # Generate documentation for this project
+  output_path <- deepwikiR::generate_repo_docs(
+    project_config = first_project_config, 
+    verbose = TRUE
+  )
+  
+  if (!is.null(output_path)) {
+    cat("Documentation generated at:", output_path, "\n")
+    
+    # If you want to chat with this newly documented project:
+    # Construct path to its .rds file
+    rds_filename <- paste0(
+      tools::file_path_sans_ext(first_project_config$output_filename_base), 
+      "_analysis_data.rds"
+    )
+    analysis_rds_path <- file.path(first_project_config$output_dir, rds_filename)
+    
+    if (file.exists(analysis_rds_path)) {
+      deepwikiR::chat_with_repo(
+        analysis_data_path = analysis_rds_path,
+        config_path = "inst/config/sample_config.json" # Path to the main config
+      )
+    }
+  }
+}
+```
+
+## 6. Comprehensive Demo: Analyzing `r-lib/cli`
+
+`deepwikiR` includes an example configuration and script to demonstrate its capabilities on a real-world R package, `r-lib/cli`.
+
+**Important:** Running this demo involves:
+*   Cloning the `r-lib/cli` repository (which is moderately sized).
+*   Making numerous LLM API calls, which will consume tokens and may incur costs depending on your LLM provider.
+*   Significant processing time.
+
+**Therefore, this demo should be run manually and is not executed as part of the vignette build.**
+
+### Demo Configuration (`inst/examples/r-lib-cli-config.json`)
+
+The demo uses a dedicated configuration file. Key aspects:
 
 ```json
-"llm_settings": {
-  "max_tokens_per_request": 100,  // 减少每个函数文档的长度
-  "token_limit": 3000,  // 设置总体token限制
-  "rate_limit_delay_sec": 2  // 增加请求间隔
+{
+  "global_settings": {
+    "output_dir_root": "output/deepwikiR_demos", // Demo outputs will be here
+    "default_llm_settings": {
+      "provider": "openai", 
+      "model": "gpt-3.5-turbo",
+      // ... other LLM settings ...
+      "api_details": {
+        "api_key_env_var": "OPENAI_API_KEY" 
+      }
+    }
+  },
+  "projects": [
+    {
+      "project_name": "r-lib-cli-demo",
+      "code_source": {
+        "git_repo": "https://github.com/r-lib/cli.git", // Target repository
+        "language_hints": ["R"],
+        "include_patterns": ["*.R"],
+        "exclude_patterns": ["tests/testthat/helper-*.R", "tests/testthat/setup-*.R", "revdep/"]
+      },
+      "output_dir": "r-lib-cli-docs", // Subdirectory for this project's docs
+      "output_filename_base": "rlib_cli_docs",
+      "quarto_format": "html",
+      "export_finetuning_data": { // Fine-tuning data will be exported
+        "enabled": true,
+        "output_filename": "rlib_cli_finetune_export.jsonl",
+        "format": "jsonl_chat"
+      }
+    }
+  ]
 }
 ```
+This configuration tells `deepwikiR` to:
+1.  Clone `r-lib/cli` from GitHub.
+2.  Process its R files, excluding specified test helpers and revdep patterns.
+3.  Generate HTML documentation into `output/deepwikiR_demos/r-lib-cli-docs/`.
+4.  Export fine-tuning data to `rlib_cli_finetune_export.jsonl` in the same output directory.
 
-### 自定义Quarto输出
+### Running the Demo
 
-可以通过修改`quarto_renderer.R`中的模板来自定义文档样式和结构。
+The `inst/examples/run_rlib_cli_demo.R` script is provided to execute this demo.
 
-## 7. 故障排查
+1.  **Ensure `deepwikiR` is usable:** Either install it or load its functions (e.g., `devtools::load_all()` if you are in the `deepwikiR` project root).
+2.  **Set your LLM API Key:** Make sure the environment variable specified in `r-lib-cli-config.json` (e.g., `OPENAI_API_KEY`) is set.
+3.  **Execute the script from the `deepwikiR` project root:**
+    ```{bash eval=FALSE}
+    Rscript inst/examples/run_rlib_cli_demo.R
+    ```
+    Alternatively, you can open and run this R script interactively from your R environment.
 
-### 常见问题
+### Expected Outcome
 
-1. **依赖安装失败**
-   - 确保系统有正确的开发库：`sudo apt-get install libcurl4-openssl-dev libssl-dev libgit2-dev libxml2-dev`
-   - 使用`install_dependencies.R`脚本安装所有依赖
+*   The `r-lib/cli` repository will be cloned (first time only, or if the temporary clone is removed).
+*   `deepwikiR` will process the R files, making calls to the configured LLM. This will take some time.
+*   You will see verbose output in the console tracking the progress.
+*   Upon completion, the following will be generated in `output/deepwikiR_demos/r-lib-cli-docs/`:
+    *   `rlib_cli_docs.html` (the main Quarto documentation).
+    *   `rlib_cli_docs_analysis_data.rds` (the data file for chat mode).
+    *   `rlib_cli_finetune_export.jsonl` (the exported data for fine-tuning).
+*   The script will also print a command you can use to start chatting with the `r-lib/cli` codebase:
+    ```{bash eval=FALSE}
+    # Example command that might be printed (paths will be absolute):
+    Rscript R/deepwikiR.R chat \
+      --data_file /path/to/your/deepwikiR/output/deepwikiR_demos/r-lib-cli-docs/rlib_cli_docs_analysis_data.rds \
+      --config_file /path/to/your/deepwikiR/inst/examples/r-lib-cli-config.json
+    ```
 
-2. **Git仓库克隆失败**
-   - 检查Git URL是否正确
-   - 确保网络连接正常
-   - 对于私有仓库，可能需要配置认证
+### Illustrative Output Snippet (Conceptual)
 
-3. **LLM API调用失败**
-   - 验证API密钥是否正确设置在环境变量中
-   - 检查API基础URL是否正确
-   - 确认网络可以访问API服务
+The generated `rlib_cli_docs.html` would contain sections like:
 
-4. **调用关系图为空或不完整**
-   - 检查代码是否符合标准R函数定义格式
-   - 非标准函数定义（如S3/S4方法）可能不会被完全识别
-   - 大型代码库可能需要增加处理时间和内存限制
+**Directory Overview**
 
-5. **Quarto渲染失败**
-   - 确保Quarto CLI已正确安装并在PATH中
-   - 检查生成的.qmd文件是否有语法错误
+*   **Directory: `R/`**
+    This directory contains the core R source code for the `cli` package. It includes implementations for features like theming, string manipulation, progress bars, tree structures, and various UI elements for command-line interfaces...
 
-### 日志和调试
+**Detailed Code Element Documentation**
 
-- 主脚本会输出详细的进度信息
-- 检查控制台输出中的警告和错误信息
-- 对于更详细的调试，可以修改源代码添加更多的`cat()`或`print()`语句
+*   **`ansi_has_any()`**
+    *   **Type:** function
+    *   **Signature:** `ansi_has_any(x)`
+    *   **File:** `R/ansi-common.R`
+    *   **Description:**
+        This function checks if any of the strings in the input character vector `x` contain ANSI escape sequences. It is useful for determining if a string has existing ANSI styling...
+    *   **Code:**
+        ```r
+        ansi_has_any <- function(x) {
+          grepl(ansi_regex(), x, perl = TRUE)
+        }
+        ```
 
-## 8. 局限性和已知问题
+## 7. Troubleshooting
 
-1. **R语言特定限制**
-   - S3/S4方法和泛型函数的识别可能不完整
-   - 非标准评估和元编程模式可能导致调用关系不准确
-   - 匿名函数和闭包的处理有限
+*   **API Key Issues:** Ensure your LLM API key is correctly set as an environment variable and that the `api_key_env_var` in your config matches this variable name. Check for typos and ensure your API account has credit/access.
+*   **Git Cloning Failures:** Verify the `git_repo` URL in your config. Ensure Git is installed and accessible in your system's PATH. For private repositories, SSH key setup might be necessary.
+*   **Quarto Rendering Errors:** Make sure Quarto CLI is installed and in your PATH. Check the console output from `deepwikiR` for specific error messages from Quarto.
+*   **Long Processing Times:** Documenting large repositories or using larger LLM models can take significant time and consume many tokens. Monitor progress via verbose output. Consider refining `include_patterns` and `exclude_patterns` in your config to process only essential parts of very large projects.
 
-2. **大型代码库考虑**
-   - 大型仓库可能导致调用图过于复杂，影响可读性
-   - 处理大型代码库时可能需要更多内存和处理时间
-   - LLM token消耗会随代码库大小线性增长
+## 8. Conclusion
 
-3. **Mermaid图表限制**
-   - 复杂的调用关系可能导致图表难以阅读
-   - 超过一定复杂度的图表可能无法正确渲染
-   - 某些浏览器可能对大型Mermaid图表支持有限
+`deepwikiR` aims to significantly streamline the process of documenting and understanding R code repositories. By integrating static analysis with LLM-driven content generation and interactive exploration, it offers a powerful toolkit for R developers.
 
-## 9. 未来改进方向
+Future development may include deeper static analysis, more sophisticated call graph interactions, support for additional languages, and enhanced customization options.
 
-1. **增强R语言分析**
-   - 改进S3/S4方法和泛型函数的识别
-   - 支持更多R特有的编程模式
-
-2. **调用图优化**
-   - 实现调用图分层和分组，提高大型代码库的可读性
-   - 添加交互式筛选和搜索功能
-
-3. **LLM集成增强**
-   - 支持更多LLM提供商和模型
-   - 实现更智能的token分配策略
-   - 添加代码质量和改进建议功能
-
-4. **文档定制**
-   - 提供更多Quarto模板和主题选项
-   - 支持更多输出格式和定制选项
-
-## 10. 贡献和支持
-
-本工具是开源项目，欢迎贡献和改进。如有问题或建议，请通过以下方式联系：
-
-- 提交GitHub Issues
-- 发送电子邮件至维护者
-- 参与社区讨论
-
-感谢使用本工具！
+Contributions and feedback are welcome!

@@ -1,0 +1,37 @@
+{
+  "global_settings": {
+    "output_dir_root": "output/deepwikiR_demos",
+    "default_llm_settings": {
+      "provider": "openai", 
+      "model": "gpt-3.5-turbo",
+      "max_tokens_per_request": 200,
+      "temperature": 0.1,
+      "rate_limit_delay_sec": 1,
+      "api_details": {
+        "api_key_env_var": "OPENAI_API_KEY" 
+        // Ensure OPENAI_API_BASE is not set here unless specifically needed
+        // or set to the default OpenAI one if required by your llm_interactor logic
+      }
+    }
+  },
+  "projects": [
+    {
+      "project_name": "r-lib-cli-demo",
+      "code_source": {
+        "git_repo": "https://github.com/r-lib/cli.git",
+        "language_hints": ["R"],
+        "include_patterns": ["*.R"],
+        "exclude_patterns": ["tests/testthat/helper-*.R", "tests/testthat/setup-*.R", "revdep/"]
+      },
+      "output_dir": "r-lib-cli-docs", // Relative to global_settings.output_dir_root
+      "output_filename_base": "rlib_cli_docs",
+      "quarto_format": "html",
+      "export_finetuning_data": {
+        "enabled": true,
+        "output_filename": "rlib_cli_finetune_export.jsonl",
+        "format": "jsonl_chat"
+      }
+      // This project will use default_llm_settings
+    }
+  ]
+}
