@@ -1,0 +1,56 @@
+{
+  "global_settings": {
+    "output_dir_root": "output/deepwikiR_demos", 
+    "default_llm_settings": {
+      "provider": "openai",
+      "model": "gpt-3.5-turbo",
+      "max_tokens_per_request": 150, 
+      "temperature": 0.1,
+      "rate_limit_delay_sec": 1,
+      "api_details": {
+        "api_key_env_var": "OPENAI_API_KEY"
+      }
+    }
+  },
+  "projects": [
+    {
+      "project_name": "deepwikiR-self-demo",
+      "code_source": {
+        "local_path": ".", 
+        "language_hints": ["R", "Markdown", "JSON"], 
+        "include_patterns": [
+          "R/*.R",
+          "DESCRIPTION",
+          "README.md",
+          "NAMESPACE", 
+          "vignettes/*.Rmd",
+          "inst/config/*.json",
+          "inst/examples/*.R", 
+          "inst/examples/*.json" 
+        ],
+        "exclude_patterns": [
+          "output/",
+          ".git/",
+          ".Rproj.user/",
+          "renv/",
+          "packrat/",
+          ".Rhistory",
+          ".RData",
+          "inst/examples/deepwikiR-self-demo-config.json", 
+          "*.lock" 
+        ]
+      },
+      "output_dir": "deepwikiR-self-docs", 
+      "output_filename_base": "deepwikiR_self_docs",
+      "quarto_format": "html",
+      "export_finetuning_data": {
+        "enabled": true,
+        "output_filename": "deepwikiR_self_finetune_export.jsonl",
+        "format": "jsonl_chat"
+      },
+      "llm_settings": { 
+        "max_tokens_per_request": 120 
+      }
+    }
+  ]
+}
