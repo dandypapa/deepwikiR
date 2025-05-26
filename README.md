@@ -82,6 +82,27 @@ Currently, `deepwikiR` is under development. To use it, you would typically clon
         )
         ```
 
+---
+
+### Self-Documentation Demo
+
+You can also see `deepwikiR` document its own codebase. This provides another comprehensive example of its capabilities.
+
+1.  **Configuration:**
+    *   The configuration for this demo is in `inst/examples/deepwikiR-self-demo-config.json`. It's set up to process the `deepwikiR` source files themselves.
+
+2.  **Run the Self-Demo:**
+    *   Execute the following script from the project root:
+      ```bash
+      Rscript inst/examples/run_deepwikiR_self_demo.R
+      ```
+    *   This will generate documentation for `deepwikiR` into the `output/deepwikiR_demos/deepwikiR-self-docs/` directory (by default).
+
+3.  **Explore and Chat:**
+    *   Browse the generated HTML documentation.
+    *   Use the chat mode with the generated `_analysis_data.rds` file for the self-demo to ask questions about `deepwikiR`'s own code.
+---
+
 4.  **View Output:**
     *   Generated Quarto documents (HTML, PDF, etc.) will be in the specified `output_dir` for each project.
     *   If multiple projects are processed with a `global_settings$output_dir_root`, an `index.html` will be created there, linking to all project documentations.
