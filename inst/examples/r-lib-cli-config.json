@@ -2,13 +2,13 @@
   "global_settings": {
     "output_dir_root": "output/deepwikiR_demos",
     "default_llm_settings": {
-      "provider": "openai", 
+      "provider": "openai",
       "model": "gpt-3.5-turbo",
       "max_tokens_per_request": 200,
       "temperature": 0.1,
       "rate_limit_delay_sec": 1,
       "api_details": {
-        "api_key_env_var": "OPENAI_API_KEY" 
+        "api_key_env_var": "OPENAI_API_KEY"
         // Ensure OPENAI_API_BASE is not set here unless specifically needed
         // or set to the default OpenAI one if required by your llm_interactor logic
       }

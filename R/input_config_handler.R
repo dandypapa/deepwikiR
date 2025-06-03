@@ -31,7 +31,7 @@ deep_merge_settings <- function(global_defaults, project_specifics) {
 
   merged <- global_defaults
   for (name in names(project_specifics)) {
-    if (is.list(project_specifics[[name]]) && !is.null(names(project_specifics[[name]])) && 
+    if (is.list(project_specifics[[name]]) && !is.null(names(project_specifics[[name]])) &&
         is.list(global_defaults[[name]]) && !is.null(names(global_defaults[[name]]))) {
       merged[[name]] <- deep_merge_settings(global_defaults[[name]], project_specifics[[name]])
     } else {
@@ -104,7 +104,7 @@ is_absolute_path <- function(path) {
 #' # print(str(config_data, max.level = 2))
 #' }
 #' @importFrom jsonlite fromJSON
-#' @noRd 
+#' @noRd
 load_and_validate_config <- function(config_path) {
   cat(paste("Attempting to load multi-project configuration from:", config_path, "\n"))
   if (!file.exists(config_path)) {
@@ -138,13 +138,13 @@ load_and_validate_config <- function(config_path) {
     if (!is.null(project_config$llm_settings) || length(default_llm_settings) > 0) {
         project_config$llm_settings <- deep_merge_settings(default_llm_settings, project_config$llm_settings)
     }
-    
+
     if (is.null(project_config$output_dir)) {
         if (!is.null(output_dir_root)) {
             project_config$output_dir <- file.path(output_dir_root, project_name_for_log)
             cat(paste("Project output_dir not set, defaulting to global_root + project_name:", project_config$output_dir, "\n"))
         } else {
-            project_config$output_dir <- project_name_for_log 
+            project_config$output_dir <- project_name_for_log
             cat(paste("Project output_dir not set and no global_root, defaulting to project_name relative to CWD:", project_config$output_dir, "\n"))
         }
     } else {
@@ -164,58 +164,58 @@ load_and_validate_config <- function(config_path) {
     if (is.null(project_config$code_source$local_path) && is.null(project_config$code_source$git_repo)) {
       stop(paste("Project", project_name_for_log, "error: code_source must contain either 'local_path' or 'git_repo'."))
     }
-    
+
     if (!is.null(project_config$llm_settings) && is.null(project_config$llm_settings$provider)) {
        warning(paste("Project", project_name_for_log, ": LLM settings are present but API provider not specified. LLM features might fail or use defaults if available at call site."))
     } else if (is.null(project_config$llm_settings)) {
         cat(paste("Project", project_name_for_log, ": No LLM settings specified (neither project-specific nor global defaults). LLM-based documentation will be skipped.\n"))
-        project_config$llm_settings <- list(provider = NULL) 
+        project_config$llm_settings <- list(provider = NULL)
     }
 
     if (is.null(project_config$quarto_format)) {
-      project_config$quarto_format <- "html" 
+      project_config$quarto_format <- "html"
       cat(paste("Project", project_name_for_log, ": Quarto format not specified, defaulting to 'html'.\n"))
     }
     if (is.null(project_config$code_source$language_hints)) {
-      project_config$code_source$language_hints <- list("unknown") 
+      project_config$code_source$language_hints <- list("unknown")
       cat(paste("Project", project_name_for_log, ": code_source$language_hints not specified, defaulting to 'unknown'.\n"))
     }
-     if (is.null(safe_get_nested(project_config, "llm_settings", "api_details", "api_key_env_var")) && 
+     if (is.null(safe_get_nested(project_config, "llm_settings", "api_details", "api_key_env_var")) &&
          !is.null(safe_get_nested(project_config, "llm_settings", "provider"))) {
         warning(paste("Project", project_name_for_log, ": llm_settings$api_details$api_key_env_var is not set. LLM calls may fail if an API key is required by the provider ('", project_config$llm_settings$provider, "')."))
     }
 
-    export_settings <- project_config$export_finetuning_data %||% list(enabled = FALSE) 
+    export_settings <- project_config$export_finetuning_data %||% list(enabled = FALSE)
 
-    if (!is.list(export_settings)) { 
+    if (!is.list(export_settings)) {
         warning(paste("Project", project_name_for_log, ": 'export_finetuning_data' is not a list. Defaulting to disabled."))
         export_settings <- list(enabled = FALSE)
     }
-    
+
     if (is.null(export_settings$enabled)) {
-        if (length(export_settings) > 0 && !is.null(names(export_settings))) { 
+        if (length(export_settings) > 0 && !is.null(names(export_settings))) {
              warning(paste("Project", project_name_for_log, ": 'export_finetuning_data$enabled' is missing. Defaulting to FALSE."))
         }
-        export_settings$enabled <- FALSE 
+        export_settings$enabled <- FALSE
     } else if (!is.logical(export_settings$enabled) || length(export_settings$enabled) != 1) {
         warning(paste("Project", project_name_for_log, ": 'export_finetuning_data$enabled' is not a single boolean. Defaulting to FALSE."))
         export_settings$enabled <- FALSE
     }
 
     if (export_settings$enabled) {
-      if (is.null(export_settings$output_filename) || !is.character(export_settings$output_filename) || 
+      if (is.null(export_settings$output_filename) || !is.character(export_settings$output_filename) ||
           length(export_settings$output_filename) != 1 || !nzchar(trimws(export_settings$output_filename))) {
         stop(paste("Project", project_name_for_log, ": 'export_finetuning_data$output_filename' must be a non-empty string when enabled is true."))
       }
-      
+
       supported_formats <- c("jsonl_chat", "jsonl_prompt_completion")
       if (is.null(export_settings$format)) {
         export_settings$format <- "jsonl_chat"
         cat(paste("Project", project_name_for_log, ": 'export_finetuning_data$format' not specified, defaulting to 'jsonl_chat'.\n"))
-      } else if (!is.character(export_settings$format) || length(export_settings$format) != 1 || 
+      } else if (!is.character(export_settings$format) || length(export_settings$format) != 1 ||
                  !(export_settings$format %in% supported_formats)) {
-        warning(paste("Project", project_name_for_log, ": Invalid 'export_finetuning_data$format' specified ('", 
-                      export_settings$format, "'). Supported formats are: ", 
+        warning(paste("Project", project_name_for_log, ": Invalid 'export_finetuning_data$format' specified ('",
+                      export_settings$format, "'). Supported formats are: ",
                       paste(supported_formats, collapse=", "), ". Defaulting to 'jsonl_chat'."))
         export_settings$format <- "jsonl_chat"
       }

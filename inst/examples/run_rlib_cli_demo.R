@@ -17,7 +17,7 @@ if (requireNamespace("here", quietly = TRUE)) {
 } else {
    # Fallback if 'here' is not available - assumes script is run from project root
    # or that relative paths from current dir to R/ and inst/ are valid.
-   project_root <- "." 
+   project_root <- "."
    warning("Package 'here' not found. Assuming current directory is project root or paths are relative from here.")
 }
 
@@ -55,7 +55,7 @@ if(!exists("load_and_validate_config", mode="function") || !exists("generate_rep
 config_file_path <- file.path(project_root, "inst/examples/r-lib-cli-config.json")
 
 if (!file.exists(config_file_path)) {
-  stop(paste("Demo configuration file not found:", config_file_path, 
+  stop(paste("Demo configuration file not found:", config_file_path,
              "\nPlease ensure you are running this script from the root of the deepwikiR project, or adjust project_root definition."))
 }
 
@@ -81,7 +81,7 @@ cat("Please ensure your OPENAI_API_KEY (or the key specified in the config) is s
 output_doc_path <- NULL
 tryCatch({
   # The llm_interactor should pick up the API key from Sys.getenv(api_key_env_var)
-  
+
   output_doc_path <- generate_repo_docs(project_config = rlib_cli_project_conf, verbose = TRUE)
   cat(paste("\nDocumentation generation complete for", rlib_cli_project_conf$project_name, "!\n"))
   cat(paste("Output saved in directory:", normalizePath(rlib_cli_project_conf$output_dir), "\n"))
@@ -95,27 +95,27 @@ tryCatch({
 if (!is.null(output_doc_path)) {
    analysis_rds_filename <- paste0(tools::file_path_sans_ext(rlib_cli_project_conf$output_filename_base), "_analysis_data.rds")
    analysis_rds_path <- file.path(rlib_cli_project_conf$output_dir, analysis_rds_filename)
-   
+
    # Construct path to deepwikiR's CLI entry point (assuming it's R/deepwikiR.R)
    # This path needs to be relative to where the user *runs* this demo script from,
    # or absolute if the package is installed. For this demo, assume relative from project root.
    deepwikiR_cli_script_path <- file.path(project_root, "R/deepwikiR.R") # Path to the CLI script
 
    if(file.exists(analysis_rds_path)) {
-       cat(paste0("\nTo chat with the ", rlib_cli_project_conf$project_name, 
+       cat(paste0("\nTo chat with the ", rlib_cli_project_conf$project_name,
                   " repository (from project root of deepwikiR), you can run:\n"))
        # Ensure paths are correctly quoted and normalized for command line use
        cmd_data_file <- shQuote(normalizePath(analysis_rds_path))
        cmd_config_file <- shQuote(normalizePath(config_file_path))
        cmd_script_path <- shQuote(deepwikiR_cli_script_path) # No normalization, it's relative to project root
 
-       cat(paste0("Rscript ", cmd_script_path, " chat --data_file ", 
+       cat(paste0("Rscript ", cmd_script_path, " chat --data_file ",
                   cmd_data_file, " --config_file ", cmd_config_file, "\n\n"))
-       
+
        # Example of directly calling chat_with_repo if preferred:
        # This assumes deepwikiR functions are loaded (e.g., via devtools::load_all())
        # cat("Alternatively, from an R session (after loading deepwikiR functions):\n")
-       # cat(paste0("deepwikiR::chat_with_repo(analysis_data_path = \"", normalizePath(analysis_rds_path), 
+       # cat(paste0("deepwikiR::chat_with_repo(analysis_data_path = \"", normalizePath(analysis_rds_path),
        #            "\", config_path = \"", normalizePath(config_file_path), "\")\n"))
    } else {
        cat(paste("\nAnalysis data file (", analysis_rds_path, ") not found. Chat mode cannot be demonstrated.\n"))

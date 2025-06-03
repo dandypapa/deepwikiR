@@ -93,7 +93,7 @@ generate_r_call_graph <- function(r_file_paths_from_config, project_base_path) {
   }
 
   tryCatch({
-    defined_functions_map <- list() 
+    defined_functions_map <- list()
     all_defined_function_names <- character(0)
 
     for(relative_fp in r_file_paths_from_config){
@@ -140,7 +140,7 @@ generate_r_call_graph <- function(r_file_paths_from_config, project_base_path) {
                         if (is.call(body_expr)) {
                             # Attempt to deparse the called function name/expression
                             # This handles simple function calls, namespaced calls (pkg::fun), and complex calls (obj$method)
-                            called_func_char <- deparse(body_expr[[1]], width.cutoff = 500L)[1] 
+                            called_func_char <- deparse(body_expr[[1]], width.cutoff = 500L)[1]
                             # Basic filter for valid-looking function names or calls
                             if (grepl("^[a-zA-Z0-9_.]+(::[a-zA-Z0-9_.]+)?(\\$[a-zA-Z0-9_.]+)?$", called_func_char)) {
                                 calls <- c(calls, called_func_char)
@@ -149,7 +149,7 @@ generate_r_call_graph <- function(r_file_paths_from_config, project_base_path) {
                             for (k in 2:length(body_expr)) {
                                 calls <- c(calls, find_calls_in_body(body_expr[[k]]))
                             }
-                        } else if (is.recursive(body_expr) && !is.symbol(body_expr)) { 
+                        } else if (is.recursive(body_expr) && !is.symbol(body_expr)) {
                             # Recurse on list-like structures or language objects, but not symbols
                             for (sub_expr in body_expr) {
                                 calls <- c(calls, find_calls_in_body(sub_expr))
@@ -161,7 +161,7 @@ generate_r_call_graph <- function(r_file_paths_from_config, project_base_path) {
                     if (length(expr[[3]]) >= 3) { # Ensure there is a body
                         body_calls <- find_calls_in_body(expr[[3]][[3]]) # expr[[3]][[3]] is the function body
                         for (callee_name_raw in body_calls) {
-                            callee_id <- callee_name_raw 
+                            callee_id <- callee_name_raw
                             # Check if callee is one of the defined functions in the project
                             # This logic attempts to resolve if the raw call name matches a defined function
                             is_project_defined_call <- FALSE
@@ -236,29 +236,29 @@ analyze_r_repository_code <- function(code_details, project_base_path) {
   call_graph_result <- generate_r_call_graph(r_file_relative_paths, project_base_path)
   
   directory_contents <- list()
-  all_relative_file_paths_for_dirs <- names(code_details) 
+  all_relative_file_paths_for_dirs <- names(code_details)
 
   for (relative_file_path in all_relative_file_paths_for_dirs) {
     dir_name <- dirname(relative_file_path)
-    
+
     if (dir_name == ".") {
-      dir_key <- "." 
+      dir_key <- "."
     } else {
       dir_key <- gsub("\\\\", "/", dir_name)
       if (!endsWith(dir_key, "/")) {
         dir_key <- paste0(dir_key, "/")
       }
     }
-    
+
     base_name <- basename(relative_file_path)
-    
+
     if (is.null(directory_contents[[dir_key]])) {
       directory_contents[[dir_key]] <- list()
     }
     # Append basename to the list for this directory key
     directory_contents[[dir_key]][[length(directory_contents[[dir_key]]) + 1]] <- base_name
   }
-  
+
   for (dir_key in names(directory_contents)) {
     directory_contents[[dir_key]] <- unique(unlist(directory_contents[[dir_key]]))
   }

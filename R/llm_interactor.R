@@ -100,8 +100,8 @@ handle_tidyllm_completion <- function(prompt, model_name, max_tokens, temperatur
   Sys.setenv(OPENAI_API_KEY = api_key)
   if (!is.null(api_base_url) && nzchar(api_base_url)) {
     Sys.setenv(OPENAI_API_BASE = api_base_url)
-  } 
-  
+  }
+
   on.exit({
     if (is.na(orig_openai_api_key)) Sys.unsetenv("OPENAI_API_KEY") else Sys.setenv(OPENAI_API_KEY = orig_openai_api_key)
     if (is.na(orig_openai_api_base)) Sys.unsetenv("OPENAI_API_BASE") else Sys.setenv(OPENAI_API_BASE = orig_openai_api_base)
@@ -119,10 +119,10 @@ handle_tidyllm_completion <- function(prompt, model_name, max_tokens, temperatur
 
     if (is.data.frame(response) && "completion" %in% names(response) && nrow(response) > 0) {
       generated_text <- response$completion[1]
-      prompt_tokens <- nchar(prompt) / 4 
+      prompt_tokens <- nchar(prompt) / 4
       completion_tokens <- nchar(generated_text) / 4
       total_tokens_for_request <- prompt_tokens + completion_tokens
-      
+
       result$status <- "success"
       result$content <- stringr::str_trim(generated_text)
       result$tokens_used <- total_tokens_for_request
@@ -136,7 +136,7 @@ handle_tidyllm_completion <- function(prompt, model_name, max_tokens, temperatur
     warning(error_msg)
     result$content <- error_msg
   })
-  
+
   return(result)
 }
 
@@ -165,10 +165,10 @@ invoke_llm_completion <- function(prompt, llm_config, element_name = "current el
     return(list(status = "error", content = "LLM provider not specified in llm_config.", tokens_used = 0))
   }
 
-  model_name <- safe_get_nested(llm_config, "model") %||% "gpt-3.5-turbo" 
+  model_name <- safe_get_nested(llm_config, "model") %||% "gpt-3.5-turbo"
   max_tokens <- safe_get_nested(llm_config, "max_tokens_per_request") %||% 150
   temperature <- safe_get_nested(llm_config, "temperature") %||% 0.2
-  
+
   api_key_env_var <- safe_get_nested(llm_config, "api_details", "api_key_env_var")
   if (is.null(api_key_env_var)) {
       return(list(status = "error", content = "API key environment variable name not specified in llm_config$api_details.", tokens_used = 0))
@@ -176,18 +176,18 @@ invoke_llm_completion <- function(prompt, llm_config, element_name = "current el
   api_key <- Sys.getenv(api_key_env_var, unset = "")
   if (api_key == "") {
     warning_msg <- paste("API key from env var '", api_key_env_var, "' is not set. LLM calls might fail for provider '", provider, "'.", sep="")
-    warning(warning_msg) 
+    warning(warning_msg)
   }
 
-  api_base_url <- safe_get_nested(llm_config, "api_details", "api_base_url") 
+  api_base_url <- safe_get_nested(llm_config, "api_details", "api_base_url")
 
-  if (provider == "openai" || provider == "tidyllm") { 
+  if (provider == "openai" || provider == "tidyllm") {
     cat(paste("Using tidyllm handler for provider:", provider, "for element:", element_name, "\n"))
     return(handle_tidyllm_completion(
       prompt = prompt,
       model_name = model_name,
-      max_tokens = as.integer(max_tokens), 
-      temperature = as.numeric(temperature), 
+      max_tokens = as.integer(max_tokens),
+      temperature = as.numeric(temperature),
       api_key = api_key,
       api_base_url = api_base_url,
       element_name = element_name
@@ -237,7 +237,7 @@ generate_docs_with_llm <- function(extracted_elements, llm_settings, language_hi
     prompt <- paste0(
       "You are an expert programmer tasked with generating concise documentation for code elements.",
       "\nFor the following ", lang_hint_str, " ", element$type, " named `", element$name, "`",
-      " with signature `", element$name, element$signature, "`", 
+      " with signature `", element$name, element$signature, "`",
       " found in file `", element$file_path, "`,",
       "\nCode block:\n```", tolower(language_hints[[1]] %||% "r"), "\n",
       paste(element$code_block, collapse = "\n"),
@@ -249,7 +249,7 @@ generate_docs_with_llm <- function(extracted_elements, llm_settings, language_hi
 
     llm_response <- invoke_llm_completion(
       prompt = prompt,
-      llm_config = llm_settings, 
+      llm_config = llm_settings,
       element_name = element$name
     )
 
@@ -321,16 +321,16 @@ generate_docs_with_llm <- function(extracted_elements, llm_settings, language_hi
 #' }
 generate_directory_summaries_with_llm <- function(
   directory_contents,
-  code_details, 
+  code_details,
   llm_generated_docs,
   llm_config,
-  language_hints, 
+  language_hints,
   project_name,
   verbose = TRUE
 ) {
-  
+
   directory_summaries <- list()
-  
+
   if (is.null(llm_config) || is.null(safe_get_nested(llm_config, "provider"))) {
     if (verbose) cat("LLM settings or provider not specified. Skipping directory summary generation.\n")
     return(directory_summaries)
@@ -347,20 +347,20 @@ generate_directory_summaries_with_llm <- function(
     file_list_str <- paste0("This directory contains the following files: ", paste(files_in_dir, collapse=", "), "\n\n")
     context_parts[[length(context_parts) + 1]] <- file_list_str
     current_char_count <- current_char_count + nchar(file_list_str)
-    
+
     elements_in_dir_context <- c()
     normalized_dir_path_for_match <- if (dir_path_key == ".") "." else sub("/$", "", dir_path_key)
 
     for (element_doc in all_docs) {
       if (current_char_count >= max_context_char) break
-      
-      element_dir_name <- dirname(element_doc$file_path) 
-      element_base_name <- basename(element_doc$file_path) 
+
+      element_dir_name <- dirname(element_doc$file_path)
+      element_base_name <- basename(element_doc$file_path)
 
       if (element_dir_name == normalized_dir_path_for_match && element_base_name %in% files_in_dir) {
         element_snippet <- paste0(
           "Element Name: ", element_doc$name, " (Type: ", element_doc$type, ")\n",
-          "File: ", element_doc$file_path, "\n", 
+          "File: ", element_doc$file_path, "\n",
           "Description: ", element_doc$description %||% "(No description available)", "\n---\n"
         )
         if (current_char_count + nchar(element_snippet) <= max_context_char) {
@@ -368,7 +368,7 @@ generate_directory_summaries_with_llm <- function(
           current_char_count <- current_char_count + nchar(element_snippet)
         } else {
           if (verbose) cat(paste("Context limit reached while adding elements for dir:", dir_path_key, "\n"))
-          break 
+          break
         }
       }
     }
@@ -378,7 +378,7 @@ generate_directory_summaries_with_llm <- function(
     } else {
       context_parts[[length(context_parts) + 1]] <- "\nNo specific documented code elements found or included for this directory in the context.\n"
     }
-    
+
     return(paste(unlist(context_parts), collapse=""))
   }
 
@@ -386,15 +386,15 @@ generate_directory_summaries_with_llm <- function(
 
   for (dir_path_key in names(directory_contents)) {
     if (verbose) cat(paste("Processing directory:", dir_path_key, "\n"))
-    
+
     files_in_dir <- directory_contents[[dir_path_key]]
-    
+
     compiled_context <- compile_directory_context(
       dir_path_key = dir_path_key,
       files_in_dir = files_in_dir,
-      all_docs = llm_generated_docs 
+      all_docs = llm_generated_docs
     )
-    
+
     system_prompt_dir_summary <- paste0(
       "You are an expert software engineering assistant. Your task is to provide a high-level summary of a code directory based on the context provided.\n",
       "Focus on the overall purpose, primary responsibilities, and key functionalities encapsulated within this directory.\n",
@@ -402,17 +402,17 @@ generate_directory_summaries_with_llm <- function(
       "If the directory appears to be for utility functions, testing, data, documentation, configuration, or a specific module/feature, please state that clearly.\n",
       "Aim for a concise summary of 1-3 paragraphs."
     )
-    
+
     full_prompt_for_dir <- paste0(
       system_prompt_dir_summary,
-      "\n\nBased on the following context about directory '", dir_path_key, "' in project '", project_name, 
+      "\n\nBased on the following context about directory '", dir_path_key, "' in project '", project_name,
       "', please generate the summary.\n\nContext:\n---\n",
       compiled_context,
       "\n---\n\nSummary:"
     )
 
     if (verbose) cat(paste("  Sending request to LLM for directory:", dir_path_key, "\n"))
-    
+
     llm_response <- invoke_llm_completion(
       prompt = full_prompt_for_dir,
       llm_config = llm_config,
@@ -440,7 +440,7 @@ generate_directory_summaries_with_llm <- function(
       Sys.sleep(rate_limit_delay)
     }
   }
-  
+
   if (verbose) cat(paste("Finished directory summary generation for project:", project_name, "\n"))
   return(directory_summaries)
 }

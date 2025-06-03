@@ -59,29 +59,29 @@ generate_repo_docs <- function(project_config, llm_api_key = NULL, verbose = TRU
   
   if (verbose) cat(paste0("--- Starting documentation generation for project: ", project_config$project_name, " ---\n"))
 
-  if (!is.null(llm_api_key) && 
+  if (!is.null(llm_api_key) &&
       !is.null(project_config$llm_settings) &&
       !is.null(project_config$llm_settings$api_details$api_key_env_var) &&
       project_config$llm_settings$api_details$api_key_env_var != "") {
     
     api_key_env_var_name <- project_config$llm_settings$api_details$api_key_env_var
-    orig_api_key_value <- Sys.getenv(api_key_env_var_name, unset = NA) 
-    
+    orig_api_key_value <- Sys.getenv(api_key_env_var_name, unset = NA)
+
     env_vars_to_set <- list()
     env_vars_to_set[[api_key_env_var_name]] <- llm_api_key
     do.call(Sys.setenv, env_vars_to_set)
-    
+
     on.exit({
       if (verbose) cat(paste("Restoring original API key for env var:", api_key_env_var_name, "\n"))
       env_vars_to_restore <- list()
-      if (is.na(orig_api_key_value)) { 
+      if (is.na(orig_api_key_value)) {
         Sys.unsetenv(api_key_env_var_name)
       } else {
         env_vars_to_restore[[api_key_env_var_name]] <- orig_api_key_value
         do.call(Sys.setenv, env_vars_to_restore)
       }
-    }, add = TRUE) 
-    
+    }, add = TRUE)
+
     if (verbose) cat(paste("CLI API key override applied for env var:", api_key_env_var_name, "\n"))
   }
   
@@ -90,7 +90,7 @@ generate_repo_docs <- function(project_config, llm_api_key = NULL, verbose = TRU
   
   if (length(code_details) == 0) {
     warning(paste("No code files found for project:", project_config$project_name, "- skipping documentation generation for this project."))
-    return(NULL) 
+    return(NULL)
   }
   
   if (verbose) cat(paste("Found", length(code_details), "files for project", project_config$project_name, "\n"))
@@ -99,7 +99,7 @@ generate_repo_docs <- function(project_config, llm_api_key = NULL, verbose = TRU
   if (!is.null(project_config$code_source$local_path)) {
     project_base_path <- normalizePath(project_config$code_source$local_path, mustWork = FALSE)
   } else if (!is.null(project_config$code_source$git_repo)) {
-    project_base_path <- getwd() 
+    project_base_path <- getwd()
     warning("Git repo path resolution might need refinement in generate_repo_docs.")
   } else {
      stop(paste("No local_path or git_repo specified in code_source for project:", project_config$project_name))
@@ -109,24 +109,24 @@ generate_repo_docs <- function(project_config, llm_api_key = NULL, verbose = TRU
   analysis_result <- analyze_r_repository_code(code_details, project_base_path) # Internal
   extracted_elements <- analysis_result$extracted_elements
   call_graph_data <- analysis_result$call_graph
-  directory_contents <- analysis_result$directory_contents 
+  directory_contents <- analysis_result$directory_contents
   
   if (verbose) {
     cat(paste("Found", length(extracted_elements), "code elements.\n"))
-    cat(paste("Call graph contains", length(call_graph_data$nodes), "nodes and", 
+    cat(paste("Call graph contains", length(call_graph_data$nodes), "nodes and",
               length(call_graph_data$edges), "edges.\n"))
     if (!is.null(directory_contents)) {
         cat(paste("Found directory content information for", length(directory_contents), "directories.\n"))
     }
   }
   
-  llm_generated_docs <- list() 
+  llm_generated_docs <- list()
   if (length(extracted_elements) > 0) {
     if (!is.null(project_config$llm_settings) && !is.null(project_config$llm_settings$provider)) {
       if (verbose) cat("Generating documentation for individual code elements using LLM...\n")
       llm_generated_docs <- generate_docs_with_llm( # Internal (from llm_interactor.R)
-        extracted_elements, 
-        project_config$llm_settings, 
+        extracted_elements,
+        project_config$llm_settings,
         project_config$code_source$language_hints
       )
     } else {
@@ -138,15 +138,15 @@ generate_repo_docs <- function(project_config, llm_api_key = NULL, verbose = TRU
     }
   }
 
-  directory_summaries <- NULL 
+  directory_summaries <- NULL
   if (!is.null(directory_contents) && length(directory_contents) > 0) {
     if (!is.null(project_config$llm_settings) && !is.null(project_config$llm_settings$provider)) {
       if (verbose) cat("Generating directory summaries with LLM...\n")
       directory_summaries <- generate_directory_summaries_with_llm( # Internal (from llm_interactor.R)
         directory_contents = directory_contents,
-        code_details = code_details, 
-        llm_generated_docs = llm_generated_docs, 
-        llm_config = project_config$llm_settings, 
+        code_details = code_details,
+        llm_generated_docs = llm_generated_docs,
+        llm_config = project_config$llm_settings,
         language_hints = project_config$code_source$language_hints,
         project_name = project_config$project_name,
         verbose = verbose
@@ -168,32 +168,19 @@ generate_repo_docs <- function(project_config, llm_api_key = NULL, verbose = TRU
     if (length(llm_generated_docs) > 0) {
       output_filepath <- file.path(project_config$output_dir, export_settings$output_filename)
       if (verbose) {
-        cat(paste("Exporting data for fine-tuning to:", output_filepath, 
+        cat(paste("Exporting data for fine-tuning to:", output_filepath,
                   "in format:", export_settings$format, "\n"))
       }
-      
-      tryCatch({
-        if (!exists("export_for_finetuning", mode = "function")) {
-            utils_path <- "R/export_utils.R" 
-            if (file.exists(utils_path)) {
-                if (verbose) cat(paste("Sourcing export_utils.R from:", utils_path, "\n"))
-                source(utils_path, local = TRUE) 
-            } else {
-                warning("R/export_utils.R not found. Cannot export fine-tuning data.")
-            }
-        }
 
-        if (exists("export_for_finetuning", mode = "function")) {
-            export_for_finetuning( # Assumed to be exported from export_utils.R
-              documented_elements = llm_generated_docs,
-              output_filepath = output_filepath,
-              format = export_settings$format,
-              project_name = project_config$project_name,
-              verbose = verbose
-            )
-        } else {
-            warning("export_for_finetuning function not found after attempting to source. Skipping export.")
-        }
+      tryCatch({
+        # Directly call, assuming it's available via package namespace
+        export_for_finetuning(
+          documented_elements = llm_generated_docs,
+          output_filepath = output_filepath,
+          format = export_settings$format,
+          project_name = project_config$project_name,
+          verbose = verbose
+        )
       }, error = function(e) {
         warning(paste("Failed to export fine-tuning data for project", project_config$project_name, ":", e$message))
       })
@@ -207,15 +194,15 @@ generate_repo_docs <- function(project_config, llm_api_key = NULL, verbose = TRU
   if (verbose) cat("Preparing Quarto content and rendering...\n")
   
   qmd_document_sections <- list()
-  if (length(llm_generated_docs) > 0) { 
+  if (length(llm_generated_docs) > 0) {
     for (doc_item in llm_generated_docs) {
       desc_text <- doc_item$description %||% "(No description generated)"
-      
+
       section_content <- paste0(
         "### `", doc_item$name, "`\n\n",
         "**Type:** ", doc_item$type, "\n\n",
         "**Signature:** `", doc_item$name, doc_item$signature, "`\n\n",
-        "**File:** `", doc_item$file_path, "`\n\n", 
+        "**File:** `", doc_item$file_path, "`\n\n",
         "**Description:**\n", desc_text, "\n\n",
         "**Code:**\n",
         "```", tolower(project_config$code_source$language_hints[[1]] %||% "code"), "\n",
@@ -233,32 +220,32 @@ generate_repo_docs <- function(project_config, llm_api_key = NULL, verbose = TRU
     output_dir = project_config$output_dir,
     output_filename_base = project_config$output_filename_base,
     quarto_format = project_config$quarto_format,
-    project_name = project_config$project_name, 
+    project_name = project_config$project_name,
     call_graph_data = call_graph_data,
     directory_summaries = directory_summaries,
     verbose = verbose
   )
   
   if (verbose) cat("Saving analysis data (RDS)...\n")
-  
+
   analysis_output_data <- list(
     project_name = project_config$project_name,
     language_hints = project_config$code_source$language_hints,
-    documented_elements = llm_generated_docs, 
+    documented_elements = llm_generated_docs,
     call_graph = call_graph_data,
-    directory_contents = directory_contents, 
-    directory_summaries = directory_summaries, 
+    directory_contents = directory_contents,
+    directory_summaries = directory_summaries,
     timestamp = Sys.time()
   )
-  
+
   base_name_for_rds <- project_config$output_filename_base
   if (is.null(base_name_for_rds) || base_name_for_rds == "") {
-    base_name_for_rds <- project_config$project_name 
+    base_name_for_rds <- project_config$project_name
   }
-  
+
   rds_filename <- paste0(tools::file_path_sans_ext(base_name_for_rds), "_analysis_data.rds")
   rds_filepath <- file.path(project_config$output_dir, rds_filename)
-  
+
   tryCatch({
     if (!dir.exists(project_config$output_dir)) {
       dir.create(project_config$output_dir, recursive = TRUE, showWarnings = FALSE)
@@ -317,13 +304,13 @@ calculate_relative_path <- function(from_dir, to_path) {
   to_path <- normalizePath(to_path, mustWork = FALSE)
 
   if (startsWith(to_path, paste0(from_dir, .Platform$file.sep))) {
-    return(substring(to_path, nchar(from_dir) + 2)) 
+    return(substring(to_path, nchar(from_dir) + 2))
   } else {
-    warning(paste("Cannot easily calculate relative path from", from_dir, "to", to_path, 
+    warning(paste("Cannot easily calculate relative path from", from_dir, "to", to_path,
                   ". Using basename or absolute path. Consider 'fs' package for robust relative paths."))
     from_parts <- unlist(strsplit(from_dir, .Platform$file.sep))
     to_parts <- unlist(strsplit(to_path, .Platform$file.sep))
-    
+
     common_len <- 0
     for (k in 1:min(length(from_parts), length(to_parts))) {
       if (from_parts[k] == to_parts[k]) {
@@ -332,14 +319,14 @@ calculate_relative_path <- function(from_dir, to_path) {
         break
       }
     }
-    
+
     if (common_len > 0) {
       to_rel_parts <- to_parts[(common_len + 1):length(to_parts)]
       if (length(to_rel_parts) > 0) {
         return(paste(to_rel_parts, collapse = .Platform$file.sep))
       }
     }
-    return(to_path) 
+    return(to_path)
   }
 }
 
@@ -383,7 +370,7 @@ calculate_relative_path <- function(from_dir, to_path) {
 #' # This would create /docs/hub/index.qmd and /docs/hub/index.html
 #' }
 #' @importFrom quarto quarto_render
-#' @noRd 
+#' @noRd
 generate_master_index_page <- function(generated_docs_summary, global_output_dir_root, verbose = TRUE) {
   if (length(generated_docs_summary) < 1 || is.null(global_output_dir_root) || global_output_dir_root == "") {
     if (verbose) cat("Not enough projects or no global output directory root specified. Skipping master index page generation.\n")
@@ -399,7 +386,7 @@ generate_master_index_page <- function(generated_docs_summary, global_output_dir
   index_content <- c(
     "---",
     "title: \"Project Documentation Hub\"",
-    "format: html", 
+    "format: html",
     "---",
     "",
     "## Generated Project Documentations",
@@ -411,17 +398,17 @@ generate_master_index_page <- function(generated_docs_summary, global_output_dir
   list_items <- c()
   for (doc_summary in generated_docs_summary) {
     relative_doc_path <- calculate_relative_path(global_output_dir_root, doc_summary$path) # Internal
-    
-    is_sub_path <- startsWith(normalizePath(doc_summary$output_dir, mustWork=FALSE), 
+
+    is_sub_path <- startsWith(normalizePath(doc_summary$output_dir, mustWork=FALSE),
                               normalizePath(global_output_dir_root, mustWork=FALSE))
 
-    if (!is_sub_path && grepl("^(/|[A-Za-z]:)", relative_doc_path)) { 
+    if (!is_sub_path && grepl("^(/|[A-Za-z]:)", relative_doc_path)) {
         list_items <- c(list_items, paste0("* ", doc_summary$name, " (Documentation at: `", doc_summary$path, "`) - External path, cannot make relative link easily."))
     } else {
         list_items <- c(list_items, paste0("* [", doc_summary$name, "](", relative_doc_path, ")"))
     }
   }
-  
+
   if (length(list_items) > 0) {
     index_content <- c(index_content, list_items)
   } else {
@@ -434,7 +421,7 @@ generate_master_index_page <- function(generated_docs_summary, global_output_dir
 
     if (requireNamespace("quarto", quietly = TRUE)) {
       quarto::quarto_render(input = index_qmd_path, output_format = "html", quiet = !verbose)
-      rendered_index_file <- sub("\\.qmd$", ".html", index_qmd_path) 
+      rendered_index_file <- sub("\\.qmd$", ".html", index_qmd_path)
       if (verbose) cat(paste("Master index page rendered to:", rendered_index_file, "\n"))
     } else {
       warning("Quarto package not available. Master index page QMD created but not rendered.")
@@ -443,7 +430,7 @@ generate_master_index_page <- function(generated_docs_summary, global_output_dir
     warning(paste("Failed to create or render master index page:", e$message))
     return(invisible(NULL))
   })
-  
+
   invisible(index_qmd_path)
 }
 
@@ -514,7 +501,7 @@ chat_with_repo <- function(analysis_data_path, config_path, verbose = TRUE) {
     "--data_file", shQuote(normalizePath(analysis_data_path)),
     "--config_file", shQuote(normalizePath(config_path))
   )
-  
+
   full_cmd <- paste(shQuote(rscript_path), paste(cmd_args, collapse = " "))
 
   if (verbose) {
@@ -522,15 +509,15 @@ chat_with_repo <- function(analysis_data_path, config_path, verbose = TRUE) {
     cat("Command to be executed:\n", full_cmd, "\n\n")
   }
 
-  status <- system(full_cmd, intern = FALSE, wait = TRUE) 
+  status <- system(full_cmd, intern = FALSE, wait = TRUE)
 
   if (status != 0) {
     warning(paste("Interactive mode script execution failed with status:", status))
   } else {
     if (verbose) cat("Interactive session ended.\n")
   }
-  
-  invisible(status) 
+
+  invisible(status)
 }
 
 
@@ -576,12 +563,12 @@ run_cli <- function(args = commandArgs(trailingOnly = TRUE)) {
     description = "deepwikiR - Automate code repository documentation and interaction."
   )
   parser$add_argument(
-    "--quiet", 
-    action = "store_true", 
-    default = FALSE, 
+    "--quiet",
+    action = "store_true",
+    default = FALSE,
     help = "Global quiet mode (suppresses verbose logging)."
   )
-  
+
   subparsers <- parser$add_subparsers(
     title = "mode",
     dest = "mode",
@@ -589,7 +576,7 @@ run_cli <- function(args = commandArgs(trailingOnly = TRUE)) {
   )
 
   generate_parser <- subparsers$add_parser(
-    "generate", 
+    "generate",
     help = "Analyze code repository and generate documentation."
   )
   generate_parser$add_argument(
@@ -599,26 +586,26 @@ run_cli <- function(args = commandArgs(trailingOnly = TRUE)) {
     help = "Path to the JSON configuration file."
   )
   generate_parser$add_argument( # --output-dir is effectively handled by global_output_dir_root in config now
-    "--api-key", 
+    "--api-key",
     type = "character", 
     default = NULL, 
     help = "LLM API key (optional, overrides environment variables)."
   )
 
   chat_parser <- subparsers$add_parser(
-    "chat", 
+    "chat",
     help = "Interactively query a previously analyzed code repository."
   )
   chat_parser$add_argument(
-    "--data_file", 
+    "--data_file",
     type = "character", 
-    required = TRUE, 
+    required = TRUE,
     help = "Path to the _analysis_data.rds file."
   )
   chat_parser$add_argument(
-    "--config_file", 
-    type = "character", 
-    required = TRUE, 
+    "--config_file",
+    type = "character",
+    required = TRUE,
     help = "Path to the main config.json file (for LLM settings)."
   )
   
@@ -646,9 +633,9 @@ run_cli <- function(args = commandArgs(trailingOnly = TRUE)) {
         generate_parser$print_help()
         return(invisible(NULL))
     }
-    
+
     if (current_verbose_mode) cat("Loading and validating multi-project configuration...\n")
-    
+
     config_data <- tryCatch({
         load_and_validate_config(parsed_args$config) # Internal
     }, error = function(e) {
@@ -657,7 +644,7 @@ run_cli <- function(args = commandArgs(trailingOnly = TRUE)) {
     })
 
     if (is.null(config_data)) {
-        return(invisible(NULL)) 
+        return(invisible(NULL))
     }
 
     global_settings <- config_data$global_settings
@@ -678,18 +665,18 @@ run_cli <- function(args = commandArgs(trailingOnly = TRUE)) {
         cat(paste0("\nProcessing project ", i, " of ", total_projects, ": ", single_project_conf$project_name, "\n"))
         cat(paste0(rep("-", 40), collapse=""), "\n")
       }
-      
+
       output_file_path <- generate_repo_docs( # Exported
         project_config = single_project_conf,
-        llm_api_key = parsed_args$`api-key`, 
+        llm_api_key = parsed_args$`api-key`,
         verbose = current_verbose_mode
       )
-      
+
       if (!is.null(output_file_path) && file.exists(output_file_path)) {
         generated_docs_summary[[length(generated_docs_summary) + 1]] <- list(
           name = single_project_conf$project_name,
-          path = normalizePath(output_file_path, mustWork = FALSE), 
-          output_dir = normalizePath(single_project_conf$output_dir, mustWork = FALSE) 
+          path = normalizePath(output_file_path, mustWork = FALSE),
+          output_dir = normalizePath(single_project_conf$output_dir, mustWork = FALSE)
         )
         if (current_verbose_mode) cat(paste("Successfully generated documentation for project:", single_project_conf$project_name, "at", output_file_path, "\n"))
       } else {
@@ -709,13 +696,13 @@ run_cli <- function(args = commandArgs(trailingOnly = TRUE)) {
       }
       cat(paste0(rep("=", 40), collapse=""), "\n")
     }
-    
-    if (length(generated_docs_summary) > 0 && 
+
+    if (length(generated_docs_summary) > 0 &&
         !is.null(global_settings$output_dir_root) && nzchar(global_settings$output_dir_root)) {
       if (current_verbose_mode) cat("\nGenerating master index page...\n")
       generate_master_index_page( # Internal
         generated_docs_summary = generated_docs_summary,
-        global_output_dir_root = global_settings$output_dir_root, 
+        global_output_dir_root = global_settings$output_dir_root,
         verbose = current_verbose_mode
       )
     } else {
@@ -724,9 +711,9 @@ run_cli <- function(args = commandArgs(trailingOnly = TRUE)) {
             else if (is.null(global_settings$output_dir_root) || !nzchar(global_settings$output_dir_root)) cat("Skipping master index: global_settings$output_dir_root not set.\n")
         }
     }
-    
+
     if (current_verbose_mode) cat("\nAll processing complete.\n")
-    invisible(lapply(generated_docs_summary, function(x) x$path)) 
+    invisible(lapply(generated_docs_summary, function(x) x$path))
 
   } else if (parsed_args$mode == "chat") {
     if (is.null(parsed_args$data_file) || is.null(parsed_args$config_file)) {
@@ -739,7 +726,7 @@ run_cli <- function(args = commandArgs(trailingOnly = TRUE)) {
       config_path = parsed_args$config_file,
       verbose = current_verbose_mode
     )
-    invisible(chat_status) 
+    invisible(chat_status)
   } else {
     message(paste("Unknown mode:", parsed_args$mode))
     parser$print_help()

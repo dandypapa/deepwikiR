@@ -17,11 +17,11 @@ if(!exists("load_and_validate_config", mode="function") || !exists("generate_rep
   # Source key files. This assumes a specific relative structure.
   # Adjust if main.R or another entry point handles sourcing more globally.
   cat("Sourcing required functions from R/ directory (if not already loaded)...\n")
-  
+
   # Construct paths relative to the determined project_root
   input_config_handler_path <- file.path(project_root, "R", "input_config_handler.R")
   deepwikiR_script_core_path <- file.path(project_root, "R", "deepwikiR.R") # Main functions like generate_repo_docs
-  
+
   # Other dependencies are sourced by deepwikiR.R or other sourced files.
   # We primarily need load_and_validate_config and generate_repo_docs to be available.
 
@@ -31,7 +31,7 @@ if(!exists("load_and_validate_config", mode="function") || !exists("generate_rep
   } else {
     warning(paste("Could not find R/input_config_handler.R at:", input_config_handler_path))
   }
-  
+
   if(file.exists(deepwikiR_script_core_path)) {
     source(deepwikiR_script_core_path, local = FALSE) # This will source other R/ files
     cat(paste("Sourced:", deepwikiR_script_core_path, "\n"))
@@ -49,7 +49,7 @@ if(!exists("load_and_validate_config", mode="function") || !exists("generate_rep
 config_file_path <- file.path(project_root, "inst/examples/deepwikiR-self-demo-config.json")
 
 if (!file.exists(config_file_path)) {
-  stop(paste("Self-demo configuration file not found at:", config_file_path, 
+  stop(paste("Self-demo configuration file not found at:", config_file_path,
              "\nPlease ensure you are running this script from the root of the deepwikiR project, or adjust project_root definition."))
 }
 
@@ -77,9 +77,9 @@ output_doc_path <- NULL
 tryCatch({
   # Ensure API key is set via environment variable as specified in config
   # The llm_interactor should pick it up from Sys.getenv(api_key_env_var)
-  
+
   output_doc_path <- generate_repo_docs(project_config = self_demo_project_conf, verbose = TRUE)
-  
+
   if (!is.null(output_doc_path) && file.exists(output_doc_path)) {
     cat(paste("\nDocumentation generation complete for", self_demo_project_conf$project_name, "!\n"))
     # output_dir in config is relative, make it absolute for user display
@@ -89,7 +89,7 @@ tryCatch({
   } else {
     warning("Documentation generation for self-demo did not return a valid output file path.")
   }
-  
+
 }, error = function(e) {
   cat(paste("Error during documentation generation for", self_demo_project_conf$project_name, ":\n"))
   print(e)
@@ -102,27 +102,27 @@ if (!is.null(output_doc_path) && file.exists(output_doc_path)) {
   # output_dir is relative to global_output_dir_root, which is output/deepwikiR_demos
   # project_config$output_dir is "deepwikiR-self-docs"
   # So, the actual output_dir for RDS is project_root/output/deepwikiR_demos/deepwikiR-self-docs
-  
+
   # The generate_repo_docs function saves RDS in project_config$output_dir,
   # which load_and_validate_config resolves.
   # So, self_demo_project_conf$output_dir is already the correct absolute path for the project's output.
-  
+
   analysis_rds_filename <- paste0(tools::file_path_sans_ext(self_demo_project_conf$output_filename_base), "_analysis_data.rds")
   analysis_rds_path <- file.path(self_demo_project_conf$output_dir, analysis_rds_filename) # Should be absolute from config
-  
+
   # Path to deepwikiR's main CLI script (R/deepwikiR.R)
-  deepwikiR_cli_script_path <- file.path(project_root, "R/deepwikiR.R") 
+  deepwikiR_cli_script_path <- file.path(project_root, "R/deepwikiR.R")
 
   if(file.exists(analysis_rds_path)) {
-    cat(paste0("\nTo chat with the ", self_demo_project_conf$project_name, 
+    cat(paste0("\nTo chat with the ", self_demo_project_conf$project_name,
                " repository's generated documentation (from project root of deepwikiR), you can run:\n"))
-    
+
     # Use normalized paths for the command for clarity and robustness
     cmd_data_file <- shQuote(normalizePath(analysis_rds_path))
     cmd_config_file <- shQuote(normalizePath(config_file_path))
     cmd_script_path <- shQuote(deepwikiR_cli_script_path) # This is relative to where user runs it
 
-    cat(paste0("Rscript ", cmd_script_path, " chat --data_file ", 
+    cat(paste0("Rscript ", cmd_script_path, " chat --data_file ",
                cmd_data_file, " --config_file ", cmd_config_file, "\n\n"))
   } else {
     cat(paste("\nAnalysis data file (", normalizePath(analysis_rds_path), ") not found. Chat mode cannot be demonstrated.\n"))

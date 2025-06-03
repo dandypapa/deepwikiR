@@ -31,7 +31,7 @@ Currently, `deepwikiR` is under development. To use it, you would typically clon
 # Or, after cloning:
 # Ensure all dependencies from DESCRIPTION are installed, then build/install locally.
 # For example, using devtools:
-# devtools::install() 
+# devtools::install()
 ```
 
 ## Quick Start
@@ -59,7 +59,7 @@ Currently, `deepwikiR` is under development. To use it, you would typically clon
         # Assuming deepwikiR is loaded or functions are sourced
         # Load the multi-project config
         config_data <- deepwikiR::load_and_validate_config("path/to/your_config.json")
-        
+
         # Iterate and generate for each project
         if (!is.null(config_data$projects)) {
           for (proj_conf in config_data$projects) {
@@ -72,7 +72,7 @@ Currently, `deepwikiR` is under development. To use it, you would typically clon
     *   After generating documentation for a project, an `_analysis_data.rds` file is saved in its output directory.
     *   **Using the CLI:**
         ```bash
-        Rscript R/deepwikiR.R chat --data_file path/to/project_output/_analysis_data.rds --config_file path/to/your_config.json 
+        Rscript R/deepwikiR.R chat --data_file path/to/project_output/_analysis_data.rds --config_file path/to/your_config.json
         ```
     *   **From an R Session:**
         ```R
