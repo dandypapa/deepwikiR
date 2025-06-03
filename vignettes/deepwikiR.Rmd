@@ -75,7 +75,7 @@ Other packages like `devtools`, `roxygen2`, and `testthat` are suggested for dev
     # For now, ensure you have the packages listed in DESCRIPTION's Imports and Suggests.
     # Example for some key ones:
     install.packages(c("argparse", "git2r", "jsonlite", "quarto", "stringr", "tidyllm", "devtools", "roxygen2", "testthat", "CodeDepends"))
-    
+
     # Build and install deepwikiR locally
     devtools::install()
     ```
@@ -179,7 +179,7 @@ To use this mode:
     ```{r eval=FALSE}
     deepwikiR::chat_with_repo(
       analysis_data_path = "path/to/project_output_dir/your_project_analysis_data.rds",
-      config_path = "path/to/your_main_config.json" 
+      config_path = "path/to/your_main_config.json"
       # The config_path is needed for LLM settings
     )
     ```
@@ -239,7 +239,7 @@ While the CLI is recommended for batch processing, you can also invoke `deepwiki
 
 ```{r eval=FALSE}
 # Load all functions if working from source (or library(deepwikiR) if installed)
-# devtools::load_all() 
+# devtools::load_all()
 
 # 1. Load configuration
 config_data <- deepwikiR::load_and_validate_config("inst/config/sample_config.json")
@@ -247,24 +247,24 @@ config_data <- deepwikiR::load_and_validate_config("inst/config/sample_config.js
 # 2. Process a specific project (e.g., the first one)
 if (length(config_data$projects) > 0) {
   first_project_config <- config_data$projects[[1]]
-  
+
   # Generate documentation for this project
   output_path <- deepwikiR::generate_repo_docs(
-    project_config = first_project_config, 
+    project_config = first_project_config,
     verbose = TRUE
   )
-  
+
   if (!is.null(output_path)) {
     cat("Documentation generated at:", output_path, "\n")
-    
+
     # If you want to chat with this newly documented project:
     # Construct path to its .rds file
     rds_filename <- paste0(
-      tools::file_path_sans_ext(first_project_config$output_filename_base), 
+      tools::file_path_sans_ext(first_project_config$output_filename_base),
       "_analysis_data.rds"
     )
     analysis_rds_path <- file.path(first_project_config$output_dir, rds_filename)
-    
+
     if (file.exists(analysis_rds_path)) {
       deepwikiR::chat_with_repo(
         analysis_data_path = analysis_rds_path,
@@ -295,11 +295,11 @@ The demo uses a dedicated configuration file. Key aspects:
   "global_settings": {
     "output_dir_root": "output/deepwikiR_demos", // Demo outputs will be here
     "default_llm_settings": {
-      "provider": "openai", 
+      "provider": "openai",
       "model": "gpt-3.5-turbo",
       // ... other LLM settings ...
       "api_details": {
-        "api_key_env_var": "OPENAI_API_KEY" 
+        "api_key_env_var": "OPENAI_API_KEY"
       }
     }
   },

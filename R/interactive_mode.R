@@ -49,9 +49,9 @@ build_context_from_docs <- function(documented_elements, max_context_length = 15
   }
 
   for (element in documented_elements) {
-    element_desc <- element$description 
+    element_desc <- element$description
     if (is.null(element_desc) || element_desc == "") {
-        element_desc <- element$documentation_text 
+        element_desc <- element$documentation_text
     }
     if (is.null(element_desc) || element_desc == "") {
         element_desc <- "(No description available)"
@@ -61,7 +61,7 @@ build_context_from_docs <- function(documented_elements, max_context_length = 15
       "Item: ", element$name, "\n",
       "Type: ", element$type, "\n",
       "File: ", element$file_path, "\n",
-      "Signature: ", element$name, element$signature, "\n", 
+      "Signature: ", element$name, element$signature, "\n",
       "Code:\n",
       "```r\n", # Assuming R code, could be parameterized if needed
       paste(element$code_block, collapse = "\n"), "\n",
@@ -70,21 +70,21 @@ build_context_from_docs <- function(documented_elements, max_context_length = 15
       element_desc, "\n",
       "---\n"
     )
-    
+
     block_length <- nchar(block)
     if (current_length + block_length > max_context_length && length(context_blocks) > 0) {
       cat(paste0("Context length limit (", max_context_length, " chars) reached. Context may be truncated.\n"))
-      break 
+      break
     }
-    
+
     context_blocks <- c(context_blocks, block)
     current_length <- current_length + block_length
   }
-  
+
   if (length(context_blocks) == 0) {
     return("Could not build any context from the provided documented elements (possibly all too large or empty).\n")
   }
-  
+
   return(paste(context_blocks, collapse = ""))
 }
 
@@ -118,7 +118,7 @@ main_interactive_mode <- function() { # Renamed from main to avoid conflict if s
                       help = "Path to the _analysis_data.rds file.")
   parser$add_argument("--config_file", type = "character", required = TRUE,
                       help = "Path to the main project config.json file.")
-  
+
   # When run via Rscript, commandArgs(trailingOnly=TRUE) provides the arguments
   # When sourced for testing, you might pass args manually or use default NULL
   args <- parser$parse_args(args = commandArgs(trailingOnly = TRUE))
@@ -132,18 +132,18 @@ main_interactive_mode <- function() { # Renamed from main to avoid conflict if s
   }, error = function(e) {
     stop("Error loading RDS file: ", e$message)
   })
-  
+
   cat("Loading configuration from:", args$config_file, "\n")
   if (!file.exists(args$config_file)) {
     stop("Configuration file not found: ", args$config_file)
   }
-  
+
   # project_config here refers to the *entire* multi-project config file.
   # We need to find the LLM settings, likely from global_settings or a specific project.
   # For simplicity, this script will assume LLM settings are directly accessible or within global_settings.
   # A more robust approach would be to identify which project the .rds file belongs to if ambiguous.
   full_project_config <- tryCatch({
-    jsonlite::fromJSON(args$config_file, simplifyVector = FALSE) 
+    jsonlite::fromJSON(args$config_file, simplifyVector = FALSE)
   }, error = function(e) {
     stop("Error loading JSON config file: ", e$message)
   })
@@ -160,17 +160,17 @@ main_interactive_mode <- function() { # Renamed from main to avoid conflict if s
       if (identical(proj_conf_item$project_name, current_project_name_from_data)) {
         # If this project has its own LLM settings, use them.
         # Otherwise, they should have been merged with defaults during load_and_validate_config.
-        llm_settings <- proj_conf_item$llm_settings 
+        llm_settings <- proj_conf_item$llm_settings
         break
       }
     }
   }
-  
+
   if (is.null(llm_settings) && !is.null(full_project_config$global_settings$default_llm_settings)) {
     cat("Using default LLM settings from global_settings for interactive mode.\n")
     llm_settings <- full_project_config$global_settings$default_llm_settings
   }
-  
+
   if (is.null(llm_settings) || is.null(llm_settings$provider)) { # Check for provider specifically
     stop("LLM settings (including provider) could not be resolved from the configuration file for the interactive session.")
   }
@@ -186,8 +186,8 @@ main_interactive_mode <- function() { # Renamed from main to avoid conflict if s
 
   cat("Building codebase context for the LLM...\n")
   # Pass only documented_elements to build_context_from_docs
-  code_context_str <- build_context_from_docs(documented_elements) 
-  if (nchar(code_context_str) < 100) { 
+  code_context_str <- build_context_from_docs(documented_elements)
+  if (nchar(code_context_str) < 100) {
       cat("Warning: The generated context is very short. Answers may be limited.\n")
   }
   cat("Context built. Ready for questions.\n\n")
@@ -196,7 +196,7 @@ main_interactive_mode <- function() { # Renamed from main to avoid conflict if s
   # If R/interactive_mode.R is run from project root, then "R/llm_interactor.R" is correct.
   # If run from R/ itself, then "llm_interactor.R"
   # Assuming execution from project root as per instructions for deepwikiR::run_cli
-  base_path_for_source <- if (basename(getwd()) == "R") "." else "R" 
+  base_path_for_source <- if (basename(getwd()) == "R") "." else "R"
   llm_interactor_script_path <- file.path(base_path_for_source, "llm_interactor.R")
 
   if (!file.exists(llm_interactor_script_path)) {
@@ -205,9 +205,9 @@ main_interactive_mode <- function() { # Renamed from main to avoid conflict if s
       try_path <- tryCatch(dirname(sys.frame(1)$ofile), warning=function(w) NULL) # Path of current script
       if (!is.null(try_path)) llm_interactor_script_path <- file.path(try_path, "llm_interactor.R")
   }
-  
+
   if (!file.exists(llm_interactor_script_path)) {
-    stop(paste("LLM Interactor script not found. Tried:", llm_interactor_script_path, 
+    stop(paste("LLM Interactor script not found. Tried:", llm_interactor_script_path,
                "Please ensure R/llm_interactor.R is accessible."))
   }
   source(llm_interactor_script_path, local = TRUE) # Source into local env for safety
@@ -235,15 +235,15 @@ main_interactive_mode <- function() { # Renamed from main to avoid conflict if s
       code_context_str,
       "---\n"
     )
-    
+
     full_prompt <- paste(system_prompt, "User Question:", user_question, sep = "\n")
 
     cat("\nSending question to LLM...\n")
-    
+
     llm_response <- invoke_llm_completion(
       prompt = full_prompt,
-      llm_config = llm_settings, 
-      element_name = paste("interactive_question_for", project_name_display) 
+      llm_config = llm_settings,
+      element_name = paste("interactive_question_for", project_name_display)
     )
 
     if (llm_response$status == "success") {
@@ -252,7 +252,7 @@ main_interactive_mode <- function() { # Renamed from main to avoid conflict if s
         session_tokens_consumed <- session_tokens_consumed + llm_response$tokens_used
         # Use increment_tokens_consumed from sourced llm_interactor.R if it updates a global counter
         # For session-specific, direct addition is fine as done here.
-        cat(paste0("Approx. tokens for this exchange: ", round(llm_response$tokens_used), 
+        cat(paste0("Approx. tokens for this exchange: ", round(llm_response$tokens_used),
                    ". Session total: ", round(session_tokens_consumed), "\n\n"))
       }
     } else {
@@ -266,7 +266,7 @@ main_interactive_mode <- function() { # Renamed from main to avoid conflict if s
 
 # Script Execution Guard
 # This ensures main_interactive_mode() is called only when Rscript R/interactive_mode.R is used.
-# It checks if the script is the top-level frame (sys.nframe() == 0L) 
+# It checks if the script is the top-level frame (sys.nframe() == 0L)
 # and if the session is not interactive (implying Rscript execution).
 if (sys.nframe() == 0L && !interactive()) {
   main_interactive_mode()

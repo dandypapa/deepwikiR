@@ -18,12 +18,12 @@
     {
       "project_name": "SampleProjectR_from_multi_config",
       "code_source": {
-        "local_path": "sample_code", 
+        "local_path": "sample_code",
         "language_hints": ["R"],
         "include_patterns": ["*.R"],
         "exclude_patterns": ["*test*", "*ignore*"]
       },
-      "output_dir": "SampleProjectR_docs", 
+      "output_dir": "SampleProjectR_docs",
       "output_filename_base": "R_project_docs",
       "quarto_format": "html",
       "export_finetuning_data": {
@@ -35,35 +35,35 @@
     {
       "project_name": "AnotherProjectPy_from_multi_config",
       "code_source": {
-        "local_path": "sample_code_py", 
+        "local_path": "sample_code_py",
         "language_hints": ["Python"],
         "include_patterns": ["*.py"],
         "exclude_patterns": ["*test*", "__pycache__"]
       },
-      "llm_settings": { 
+      "llm_settings": {
         "provider": "openai",
-        "model": "gpt-4", 
+        "model": "gpt-4",
         "max_tokens_per_request": 200,
         "temperature": 0.3,
         "rate_limit_delay_sec": 1,
         "api_details": {
-          "api_key_env_var": "OPENAI_API_KEY_OTHER", 
+          "api_key_env_var": "OPENAI_API_KEY_OTHER",
           "api_base_url": "https://api.openai.com/v1"
         },
         "prompt_context": "Specific prompt context for Python project."
       },
-      "output_dir": "/tmp/abs_path_py_docs_multi", 
+      "output_dir": "/tmp/abs_path_py_docs_multi",
       "output_filename_base": "Py_project_docs",
       "quarto_format": "pdf",
       "export_finetuning_data": {
-        "enabled": false 
+        "enabled": false
         // output_filename and format can be omitted if enabled is false
       }
     },
     {
       "project_name": "MinimalProject_with_defaults",
       "code_source": {
-        "local_path": "sample_code_minimal", 
+        "local_path": "sample_code_minimal",
         "language_hints": ["Generic"],
         "include_patterns": ["*.txt"]
       },

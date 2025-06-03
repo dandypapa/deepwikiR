@@ -85,8 +85,8 @@ NULL
 #' }
 #' @export
 export_for_finetuning <- function(
-    documented_elements, 
-    output_filepath, 
+    documented_elements,
+    output_filepath,
     format = "jsonl_chat",
     project_name = NULL,
     verbose = TRUE
@@ -107,7 +107,7 @@ export_for_finetuning <- function(
     dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
   }
 
-  con <- NULL 
+  con <- NULL
 
   tryCatch({
     if (format == "jsonl_chat") {
@@ -118,12 +118,12 @@ export_for_finetuning <- function(
           if (verbose) cat("Closing file connection (on.exit)...\n")
           close(con)
         }
-      }, add = TRUE) 
+      }, add = TRUE)
 
       processed_count <- 0
       for (i in seq_along(documented_elements)) {
         element <- documented_elements[[i]]
-        
+
         required_fields <- c("type", "name", "signature", "file_path", "code_block", "description")
         missing_fields <- setdiff(required_fields, names(element))
         if (length(missing_fields) > 0) {
@@ -131,7 +131,7 @@ export_for_finetuning <- function(
             warning(paste0("Skipping element #", i, " (name: '", element$name %||% "NA",
                            "') due to missing fields: ", paste(missing_fields, collapse = ", "), "\n"))
           }
-          next 
+          next
         }
 
         system_prompt_content <- paste0(
@@ -139,15 +139,15 @@ export_for_finetuning <- function(
           if (!is.null(project_name) && nzchar(project_name)) paste0(" for the project '", project_name, "'") else "",
           ". Explain the following R code accurately and concisely."
         )
-        
+
         user_prompt_content <- paste0(
-          "Explain the R ", element$type, " named `", element$name, 
-          "` with signature `", element$name, element$signature, 
-          "` found in file `", element$file_path, 
-          "`. Code:\n```r\n", 
+          "Explain the R ", element$type, " named `", element$name,
+          "` with signature `", element$name, element$signature,
+          "` found in file `", element$file_path,
+          "`. Code:\n```r\n",
           paste(element$code_block, collapse = "\n"), "\n```"
         )
-        
+
         assistant_content <- element$description %||% ""
 
         json_data <- list(
@@ -157,7 +157,7 @@ export_for_finetuning <- function(
             list(role = "assistant", content = assistant_content)
           )
         )
-        
+
         json_string <- jsonlite::toJSON(json_data, auto_unbox = TRUE, pretty = FALSE)
         writeLines(json_string, con)
         processed_count <- processed_count + 1
@@ -178,31 +178,31 @@ export_for_finetuning <- function(
       for (i in seq_along(documented_elements)) {
         element <- documented_elements[[i]]
 
-        required_fields <- c("type", "name", "code_block", "description") 
+        required_fields <- c("type", "name", "code_block", "description")
         missing_fields <- setdiff(required_fields, names(element))
         if (length(missing_fields) > 0) {
           if (verbose) {
             warning(paste0("Skipping element #", i, " (name: '", element$name %||% "NA",
                            "') for prompt_completion due to missing fields: ", paste(missing_fields, collapse = ", "), "\n"))
           }
-          next 
+          next
         }
-        
+
         prompt_content <- paste0(
           "Explain the R ", element$type, " named `", element$name, "`.",
           if (!is.null(element$signature) && nzchar(element$signature)) paste0(" Signature: `", element$name, element$signature, "`.") else "",
           if (!is.null(element$file_path) && nzchar(element$file_path)) paste0(" File: `", element$file_path, "`.") else "",
-          "\nCode:\n```r\n", 
+          "\nCode:\n```r\n",
           paste(element$code_block, collapse = "\n"), "\n```\n\nExplanation:"
         )
-        
+
         completion_content <- element$description %||% ""
 
         json_data <- list(
           prompt = prompt_content,
           completion = completion_content
         )
-        
+
         json_string <- jsonlite::toJSON(json_data, auto_unbox = TRUE, pretty = FALSE)
         writeLines(json_string, con)
         processed_count <- processed_count + 1
@@ -210,22 +210,22 @@ export_for_finetuning <- function(
       if (verbose) cat(paste("Successfully exported", processed_count, "elements to:", output_filepath, "\n"))
 
     } else {
-      warning(paste("Invalid export format specified:", format, 
+      warning(paste("Invalid export format specified:", format,
                     ". Supported formats are 'jsonl_chat' and 'jsonl_prompt_completion'. No file written."))
     }
   }, error = function(e) {
     if (verbose) cat(paste("Error during export:", e$message, "\n"))
     if (!is.null(con) && isOpen(con)) {
       close(con)
-      con <- NULL 
+      con <- NULL
     }
-    stop(e) 
+    stop(e)
   }, finally = {
     if (!is.null(con) && isOpen(con)) {
       if (verbose) cat("Closing file connection (finally block)...\n")
       close(con)
     }
   })
-  
+
   return(invisible(NULL))
 }

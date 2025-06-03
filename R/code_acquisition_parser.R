@@ -62,7 +62,7 @@ acquire_code_content <- function(code_source_config) {
     }
     
     for (file_path in files_to_process) {
-      if (dir.exists(file_path)) next 
+      if (dir.exists(file_path)) next
       
       tryCatch({
         if (utils::file.info(file_path)$size > 10 * 1024 * 1024) {
@@ -93,7 +93,7 @@ acquire_code_content <- function(code_source_config) {
       
       files_to_process <- list.files(target_dir, recursive = TRUE, full.names = TRUE, no.. = TRUE)
       for (file_path in files_to_process) {
-        if (dir.exists(file_path) || grepl(paste0(.Platform$file.sep, ".git", .Platform$file.sep), file_path, fixed = TRUE)) next 
+        if (dir.exists(file_path) || grepl(paste0(.Platform$file.sep, ".git", .Platform$file.sep), file_path, fixed = TRUE)) next
         
         tryCatch({
           if (utils::file.info(file_path)$size > 10 * 1024 * 1024) {

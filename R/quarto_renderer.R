@@ -41,14 +41,14 @@ generate_mermaid_call_graph <- function(call_graph_data) {
   
   sanitize_mermaid_id <- function(id) {
     id <- gsub("::", "__", id, fixed = TRUE) # Use fixed = TRUE for literal "::"
-    id <- gsub("[^a-zA-Z0-9_]", "_", id) 
+    id <- gsub("[^a-zA-Z0-9_]", "_", id)
     if (grepl("^[0-9]", id)) {
-        id <- paste0("n",id) 
+        id <- paste0("n",id)
     }
     return(id)
   }
   
-  node_map <- list() 
+  node_map <- list()
   for (node_name in unique(call_graph_data$nodes)) {
     sanitized_id <- sanitize_mermaid_id(node_name)
     node_map[[node_name]] <- sanitized_id
@@ -132,14 +132,14 @@ generate_mermaid_call_graph <- function(call_graph_data) {
 #' @importFrom quarto quarto_render
 #' @noRd
 render_quarto_document <- function(
-  qmd_content_list, 
-  output_dir, 
-  output_filename_base, 
-  quarto_format = "html", 
-  project_name = "Project", 
+  qmd_content_list,
+  output_dir,
+  output_filename_base,
+  quarto_format = "html",
+  project_name = "Project",
   call_graph_data = NULL,
-  directory_summaries = NULL, 
-  verbose = TRUE 
+  directory_summaries = NULL,
+  verbose = TRUE
 ) {
   if (!dir.exists(output_dir)) {
     dir.create(output_dir, recursive = TRUE)
@@ -158,7 +158,7 @@ render_quarto_document <- function(
     "---",
     "\ntitle: \"", doc_title, "\"",
     "\nformat: ", quarto_format,
-    "\neditor: visual", 
+    "\neditor: visual",
     "\ntoc: true",
     "\ntoc-depth: 3",
     "\n---",
@@ -166,21 +166,21 @@ render_quarto_document <- function(
   )
   
   full_qmd_content_lines <- list(yaml_header)
-  
+
   if (!is.null(directory_summaries) && length(directory_summaries) > 0) {
     dir_summary_qmd <- list("\n## Directory Overview\n")
     sorted_dir_names <- sort(names(directory_summaries))
-    
+
     for (dir_path in sorted_dir_names) {
       summary_text <- directory_summaries[[dir_path]]
       display_dir_path <- if (dir_path == ".") "./ (Project Root)" else dir_path
-      
+
       dir_summary_qmd[[length(dir_summary_qmd) + 1]] <- paste0(
         "\n### Directory: `", display_dir_path, "`\n\n",
         summary_text, "\n"
       )
     }
-    dir_summary_qmd[[length(dir_summary_qmd) + 1]] <- "\n---\n" 
+    dir_summary_qmd[[length(dir_summary_qmd) + 1]] <- "\n---\n"
     full_qmd_content_lines <- c(full_qmd_content_lines, dir_summary_qmd)
   }
   
@@ -191,7 +191,7 @@ render_quarto_document <- function(
       "```mermaid\n",
       mermaid_syntax,
       "\n```\n\n",
-      "---\n" 
+      "---\n"
     )
     full_qmd_content_lines <- c(full_qmd_content_lines, mermaid_section)
   }
@@ -200,13 +200,13 @@ render_quarto_document <- function(
     element_docs_qmd <- list("\n## Detailed Code Element Documentation\n")
     for (item in qmd_content_list) {
       item_content <- ""
-      if(is.list(item) && !is.null(item$content_block)) { 
+      if(is.list(item) && !is.null(item$content_block)) {
         item_content <- item$content_block
       } else if (is.character(item)) {
         item_content <- item
-      } 
-      
-      if (nzchar(item_content)) { 
+      }
+
+      if (nzchar(item_content)) {
         element_docs_qmd[[length(element_docs_qmd) + 1]] <- paste0("\n", item_content, "\n\n---\n")
       }
     }

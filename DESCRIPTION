@@ -4,21 +4,23 @@ Version: 0.2.0
 Authors@R: 
     person("DeepWiki", "Team", , "example@example.com", role = c("aut", "cre"),
            comment = c(ORCID = ""))
-Description: An advanced tool for automated documentation generation and exploration of R code repositories. 
-    It combines static code analysis, Large Language Model (LLM) powered insights, and the Quarto publishing 
-    framework. Key features include: generation of comprehensive documentation for functions and code 
-    elements, visualization of function/module call graphs using Mermaid diagrams, support for multiple 
-    projects via a unified configuration, generation of directory-level summaries, an interactive chat 
-    mode for Q&A about the codebase, and export of documented elements for LLM fine-tuning. 
-    The system supports code from local file systems and Git repositories, and aims to adhere to 
+Description: An advanced tool for automated documentation generation and exploration of R code repositories.
+    It combines static code analysis, Large Language Model (LLM) powered insights, and the Quarto publishing
+    framework. Key features include: generation of comprehensive documentation for functions and code
+    elements, visualization of function/module call graphs using Mermaid diagrams, support for multiple
+    projects via a unified configuration, generation of directory-level summaries, an interactive chat
+    mode for Q&A about the codebase, and export of documented elements for LLM fine-tuning.
+    The system supports code from local file systems and Git repositories, and aims to adhere to
     R package structure using Roxygen2 for inline documentation.
+URL: https://github.com/placeholder_username/deepwikiR
+BugReports: https://github.com/placeholder_username/deepwikiR/issues
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.2.3
 Imports: 
     argparse,
-    CodeDepends, 
+    CodeDepends,
     git2r,
     jsonlite,
     quarto,
